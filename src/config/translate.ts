@@ -74,6 +74,12 @@ export const TRANSLATIONS = {
       cakeCardTitle: "کیک‌سازی جادویی",
       cakeCardDesc:
         "رنگ خامه، سس شکلات و توت‌فرنگی، ماکارون و عروسک بالای کیک تولدت رو خودت انتخاب کن!",
+      castleCardTitle: "گردش در سرزمین قلعه",
+      castleCardDesc:
+        "تک‌شاخ باش و با کلیک توی باغ و اطراف قلعه بگرد، ستاره‌ها و قلب‌ها رو جمع کن و دوستات رو ببین!",
+      pianoCardTitle: "پیانوی رنگین‌کمانی پری‌ها",
+      pianoCardDesc:
+        "کلیدهای رنگین‌کمانی رو بزن، آهنگ «تولدت مبارک» رو یاد بگیر و رقص تک‌شاخ و دوستاش رو ببین!",
     },
     balloonGame: {
       title: "بادکنک‌های رنگین‌کمانی",
@@ -126,6 +132,39 @@ export const TRANSLATIONS = {
         gift: "کادو",
       },
       tip: "کیک رو با انگشت بچرخون و با دکمه‌ها هر چقدر دوست داری تزئینش کن!",
+    },
+    castleWorld: {
+      title: "گردش در سرزمین قلعه",
+      subtitle: "هر جا روی زمین بزنی تک‌شاخ به اونجا می‌ره! همه ۷ ستاره جادویی اطراف قلعه رو پیدا کن!",
+      loading: "در حال ساخت سرزمین جادویی قلعه...",
+      starsLabel: (found: number, total: number) =>
+        `${formatNumber(found, "fa")} از ${formatNumber(total, "fa")}`,
+      heartsLabel: (count: number) => formatNumber(count, "fa"),
+      restart: "شروع دوباره",
+      friendPinkMsg: "ملودی صورتی: تولدت مبارک سروین جان! باغ گل‌ها و ستاره‌ها رو ببین!",
+      friendPurpleMsg: "کورومی بنفش: هورا! روی قارچ‌های بزرگ بپر تا پرواز کنی!",
+      castleGateMsg: "به قلعه جادویی پرنسس سروین خوش اومدی!",
+      fountainMsg: "فواره آرزوها! یه آرزوی قشنگ برای تولدت بکن!",
+      winBadge: "قهرمان سرزمین قلعه!",
+      winTitle: "آفرین سروین جان!",
+      winMessage: "همه ۷ ستاره جادویی سرزمین قلعه رو پیدا کردی و جشن بزرگ شروع شد!",
+      playAgain: "دوباره بگردیم!",
+      tip: "هر جا روی چمن یا مسیرها کلیک کنی تک‌شاخ راه می‌افته! روی قارچ‌های صورتی بپر!",
+    },
+    fairyPiano: {
+      title: "پیانوی رنگین‌کمانی پری‌ها",
+      subtitle: "کلیدهای رنگین‌کمانی رو بزن یا با دنبال کردن ستاره طلایی، آهنگ تولدت مبارک رو بنواز!",
+      loading: "در حال کوک کردن پیانوی رنگین‌کمانی...",
+      modeFree: "نواختن آزاد",
+      modeLearn: "آهنگ تولدت مبارک",
+      demoBtn: "گوش بده!",
+      winBadge: "نوازنده جادویی تولد!",
+      winTitle: "آفرین سروین جان!",
+      winMessage: "آهنگ «تولدت مبارک» رو خیلی قشنگ نواختی! تک‌شاخ و دوستاش برات دست می‌زنن!",
+      playAgain: "دوباره بنواز!",
+      progressLabel: (step: number, total: number) =>
+        `نت ${formatNumber(step, "fa")} از ${formatNumber(total, "fa")}`,
+      tip: "روی کلیدهای رنگی بزن (یا از کلیدهای ۱ تا ۸ کیبورد استفاده کن) تا دوستات برقصن!",
     },
   },
   en: {
@@ -192,6 +231,12 @@ export const TRANSLATIONS = {
       cakeCardTitle: "Cake Decorator Studio",
       cakeCardDesc:
         "Design your dream birthday cake with pastel frostings, drips, macarons, strawberries & cute toppers!",
+      castleCardTitle: "Unicorn Castle Adventure",
+      castleCardDesc:
+        "Play as the unicorn! Click anywhere to explore the castle grounds, collect stars & visit cute friends!",
+      pianoCardTitle: "Rainbow Fairy Piano",
+      pianoCardDesc:
+        "Tap glowing rainbow keys to play music or follow the golden star to play Happy Birthday!",
     },
     balloonGame: {
       title: "3D Rainbow Balloon Pop",
@@ -243,6 +288,37 @@ export const TRANSLATIONS = {
         gift: "Gift Box",
       },
       tip: "Drag to spin your cake around and tap the buttons to decorate!",
+    },
+    castleWorld: {
+      title: "Unicorn Castle Adventure",
+      subtitle: "Click anywhere on the ground to walk as the unicorn and find all 7 magical stars around the castle!",
+      loading: "Building Sarvin's Magical Castle World...",
+      starsLabel: (found: number, total: number) => `${found} / ${total}`,
+      heartsLabel: (count: number) => String(count),
+      restart: "Restart",
+      friendPinkMsg: "Pink Bunny: Happy Birthday Sarvin! Explore the flower garden!",
+      friendPurpleMsg: "Purple Bunny: Yay! Step on the big mushrooms to bounce!",
+      castleGateMsg: "Welcome to Princess Sarvin's Magical Castle!",
+      fountainMsg: "The Wishing Fountain! Make a magical birthday wish!",
+      winBadge: "CASTLE ADVENTURE CHAMPION!",
+      winTitle: "Hooray, Sarvin!",
+      winMessage: "You found all 7 magical stars across the castle kingdom!",
+      playAgain: "Explore Again!",
+      tip: "Click or tap anywhere on the grass or paths to walk! Step on pink mushrooms to bounce!",
+    },
+    fairyPiano: {
+      title: "Rainbow Fairy Piano",
+      subtitle: "Tap the rainbow keys or follow the glowing star to play Happy Birthday!",
+      loading: "Tuning the Rainbow Fairy Piano...",
+      modeFree: "Free Play",
+      modeLearn: "Play Happy Birthday",
+      demoBtn: "Listen!",
+      winBadge: "MAGICAL PIANO STAR!",
+      winTitle: "Bravo, Sarvin!",
+      winMessage: "You played Happy Birthday so beautifully! Your unicorn & friends are dancing!",
+      playAgain: "Play Again!",
+      progressLabel: (step: number, total: number) => `Note ${step} / ${total}`,
+      tip: "Tap the rainbow keys (or press 1–8 on your keyboard) to make your friends dance!",
     },
   },
 } as const;

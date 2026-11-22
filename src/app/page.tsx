@@ -67,7 +67,35 @@ export default function HomePage() {
           <Stars className="h-7 w-7 text-purple-500" />
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {/* Game 0 Card: Unicorn Castle World (Featured!) */}
+          <Link href="/games/castle-world" className="group block">
+            <motion.div
+              whileHover={{ y: -6, scale: 1.015 }}
+              whileTap={{ scale: 0.98 }}
+              className="kuromi-card relative h-full overflow-hidden rounded-[2rem] p-6"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <UnicornBadge className="h-14 w-14" />
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold text-emerald-700">
+                    {t.home.gameTag3D}
+                  </span>
+                </div>
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-md transition group-hover:-translate-x-1">
+                  <ArrowLeft className="h-5 w-5" />
+                </span>
+              </div>
+
+              <h3 className="font-display mb-2 text-2xl font-bold text-purple-900">
+                {t.home.castleCardTitle}
+              </h3>
+              <p className="text-sm font-semibold text-purple-800/80 sm:text-base">
+                {t.home.castleCardDesc}
+              </p>
+            </motion.div>
+          </Link>
+
           {/* Game 1 Card */}
           <Link href="/games/balloon-pop" className="group block">
             <motion.div
@@ -148,6 +176,34 @@ export default function HomePage() {
               </h3>
               <p className="text-sm font-semibold text-purple-800/80 sm:text-base">
                 {t.home.cakeCardDesc}
+              </p>
+            </motion.div>
+          </Link>
+
+          {/* Game 4 Card: Rainbow Fairy Piano */}
+          <Link href="/games/fairy-piano" className="group block md:col-span-2">
+            <motion.div
+              whileHover={{ y: -6, scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              className="kuromi-card relative h-full overflow-hidden rounded-[2rem] p-6"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <PinkBunnyBadge className="h-14 w-14" />
+                  <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-extrabold text-sky-700">
+                    {t.home.gameTag3D}
+                  </span>
+                </div>
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-sky-400 via-pink-500 to-purple-500 text-white shadow-md transition group-hover:-translate-x-1">
+                  <ArrowLeft className="h-5 w-5" />
+                </span>
+              </div>
+
+              <h3 className="font-display mb-2 text-2xl font-bold text-purple-900">
+                {t.home.pianoCardTitle}
+              </h3>
+              <p className="text-sm font-semibold text-purple-800/80 sm:text-base">
+                {t.home.pianoCardDesc}
               </p>
             </motion.div>
           </Link>
