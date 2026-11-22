@@ -67,13 +67,13 @@ export default function HomePage() {
           <Stars className="h-7 w-7 text-purple-500" />
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {/* Game 1 Card */}
           <Link href="/games/balloon-pop" className="group block">
             <motion.div
               whileHover={{ y: -6, scale: 1.015 }}
               whileTap={{ scale: 0.98 }}
-              className="kawaii-card relative overflow-hidden rounded-[2rem] p-6 sm:p-7"
+              className="kawaii-card relative h-full overflow-hidden rounded-[2rem] p-6"
             >
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -82,12 +82,12 @@ export default function HomePage() {
                     {t.home.gameTag3D}
                   </span>
                 </div>
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white shadow-md transition group-hover:-translate-x-1">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white shadow-md transition group-hover:-translate-x-1">
                   <ArrowLeft className="h-5 w-5" />
                 </span>
               </div>
 
-              <h3 className="font-display mb-2 text-2xl font-bold text-purple-900 sm:text-3xl">
+              <h3 className="font-display mb-2 text-2xl font-bold text-purple-900">
                 {t.home.balloonCardTitle}
               </h3>
               <p className="text-sm font-semibold text-purple-800/80 sm:text-base">
@@ -101,7 +101,7 @@ export default function HomePage() {
             <motion.div
               whileHover={{ y: -6, scale: 1.015 }}
               whileTap={{ scale: 0.98 }}
-              className="kuromi-card relative overflow-hidden rounded-[2rem] p-6 sm:p-7"
+              className="kuromi-card relative h-full overflow-hidden rounded-[2rem] p-6"
             >
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -110,16 +110,44 @@ export default function HomePage() {
                     {t.home.gameTag3D}
                   </span>
                 </div>
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md transition group-hover:-translate-x-1">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md transition group-hover:-translate-x-1">
                   <ArrowLeft className="h-5 w-5" />
                 </span>
               </div>
 
-              <h3 className="font-display mb-2 text-2xl font-bold text-purple-900 sm:text-3xl">
+              <h3 className="font-display mb-2 text-2xl font-bold text-purple-900">
                 {t.home.unicornCardTitle}
               </h3>
               <p className="text-sm font-semibold text-purple-800/80 sm:text-base">
                 {t.home.unicornCardDesc}
+              </p>
+            </motion.div>
+          </Link>
+
+          {/* Game 3 Card: Cake Decorator Studio */}
+          <Link href="/games/cake-studio" className="group block">
+            <motion.div
+              whileHover={{ y: -6, scale: 1.015 }}
+              whileTap={{ scale: 0.98 }}
+              className="kawaii-card relative h-full overflow-hidden rounded-[2rem] p-6"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <PurpleBunnyBadge className="h-14 w-14" />
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-700">
+                    {t.home.gameTag3D}
+                  </span>
+                </div>
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-amber-400 to-pink-500 text-white shadow-md transition group-hover:-translate-x-1">
+                  <ArrowLeft className="h-5 w-5" />
+                </span>
+              </div>
+
+              <h3 className="font-display mb-2 text-2xl font-bold text-purple-900">
+                {t.home.cakeCardTitle}
+              </h3>
+              <p className="text-sm font-semibold text-purple-800/80 sm:text-base">
+                {t.home.cakeCardDesc}
               </p>
             </motion.div>
           </Link>

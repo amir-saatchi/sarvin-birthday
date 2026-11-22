@@ -2,15 +2,68 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Sparkles, Float } from "@react-three/drei";
+import { OrbitControls, Sparkles, Float, ContactShadows } from "@react-three/drei";
 import * as THREE from "three";
 import confetti from "canvas-confetti";
-import { RotateCcw, Sparkles as SparklesIcon } from "lucide-react";
-import { RainbowArch3D, FluffyCloud3D, CuteUnicorn3D } from "./MagicalDecor3D";
+import { RotateCcw } from "lucide-react";
+import {
+  RainbowArch3D,
+  FluffyCloud3D,
+  CuteUnicorn3D,
+  FairyCastle3D,
+  KawaiiGiftBox3D,
+  KawaiiBunnyFriend3D,
+  MagicWand3D,
+  ExtrudedStar3D,
+  ExtrudedHeart3D,
+} from "./MagicalDecor3D";
 import { playCandleBlowSound, playVictoryFanfare } from "@/lib/soundEffects";
 import { BIRTHDAY_CONFIG } from "@/config/birthday";
 
 const CANDLE_COLORS = ["#ff6eb4", "#c084fc", "#38bdf8", "#fbbf24", "#4ade80"];
+const SPRINKLE_COLORS = ["#ff6eb4", "#fde047", "#7dd3fc", "#c084fc", "#6ee7b7"];
+
+function MiniMacaron3D({
+  position,
+  color = "#ff85c0",
+  rotation = [0, 0, 0],
+}: {
+  position: [number, number, number];
+  color?: string;
+  rotation?: [number, number, number];
+}) {
+  return (
+    <group position={position} rotation={rotation}>
+      <mesh position={[0, 0.055, 0]} scale={[1, 0.55, 1]}>
+        <sphereGeometry args={[0.13, 14, 14]} />
+        <meshPhysicalMaterial color={color} roughness={0.28} clearcoat={0.4} />
+      </mesh>
+      <mesh position={[0, 0, 0]}>
+        <cylinderGeometry args={[0.12, 0.12, 0.055, 14]} />
+        <meshStandardMaterial color="#fffaf5" roughness={0.4} />
+      </mesh>
+      <mesh position={[0, -0.055, 0]} scale={[1, 0.55, 1]}>
+        <sphereGeometry args={[0.13, 14, 14]} />
+        <meshPhysicalMaterial color={color} roughness={0.28} clearcoat={0.4} />
+      </mesh>
+    </group>
+  );
+}
+
+function MiniStrawberry3D({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <mesh rotation={[Math.PI, 0, 0]}>
+        <coneGeometry args={[0.11, 0.22, 14]} />
+        <meshPhysicalMaterial color="#fb7185" roughness={0.25} clearcoat={0.5} />
+      </mesh>
+      <mesh position={[0, 0.11, 0]}>
+        <cylinderGeometry args={[0.1, 0.03, 0.05, 7]} />
+        <meshStandardMaterial color="#4ade80" roughness={0.4} />
+      </mesh>
+    </group>
+  );
+}
 
 function Candle3D({
   position,
@@ -23,7 +76,7 @@ function Candle3D({
   isLit: boolean;
   onBlow: () => void;
 }) {
-  const flameRef = useRef<THREE.Mesh>(null);
+  const flameRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
 
   useFrame((state) => {
@@ -55,49 +108,62 @@ function Candle3D({
         document.body.style.cursor = "auto";
       }}
     >
-      {/* Invisible slightly larger hit cylinder so a 5-year-old can easily tap candles */}
-      <mesh position={[0, 0.42, 0]} visible={false}>
-        <cylinderGeometry args={[0.24, 0.24, 0.9, 10]} />
+      {/* Generous invisible hit cylinder for 5-year-old tapping */}
+      <mesh position={[0, 0.44, 0]} visible={false}>
+        <cylinderGeometry args={[0.25, 0.25, 0.92, 10]} />
         <meshBasicMaterial />
       </mesh>
 
-      {/* Candle body */}
-      <mesh position={[0, 0.28, 0]}>
-        <cylinderGeometry args={[0.075, 0.08, 0.56, 16]} />
-        <meshStandardMaterial color={color} roughness={0.3} />
+      {/* Cute candle holder cup */}
+      <mesh position={[0, 0.03, 0]}>
+        <cylinderGeometry args={[0.11, 0.08, 0.07, 14]} />
+        <meshStandardMaterial color="#fde047" metalness={0.45} roughness={0.25} />
       </mesh>
 
-      {/* White stripe ring */}
-      <mesh position={[0, 0.28, 0]}>
-        <torusGeometry args={[0.08, 0.015, 10, 20]} />
-        <meshStandardMaterial color="#ffffff" />
+      {/* Glossy candle body */}
+      <mesh position={[0, 0.3, 0]}>
+        <cylinderGeometry args={[0.072, 0.078, 0.56, 16]} />
+        <meshPhysicalMaterial color={color} roughness={0.22} clearcoat={0.6} />
       </mesh>
+
+      {/* Twin decorative stripe rings */}
+      {[0.2, 0.36, 0.5].map((ry) => (
+        <mesh key={ry} position={[0, ry, 0]} rotation={[0.22, 0, 0]}>
+          <torusGeometry args={[0.078, 0.014, 10, 20]} />
+          <meshStandardMaterial color="#ffffff" roughness={0.3} />
+        </mesh>
+      ))}
 
       {/* Wick */}
-      <mesh position={[0, 0.6, 0]}>
+      <mesh position={[0, 0.62, 0]}>
         <cylinderGeometry args={[0.012, 0.012, 0.09, 8]} />
         <meshStandardMaterial color="#3b1d5e" />
       </mesh>
 
-      {/* Glowing flame */}
+      {/* Layered glowing flame */}
       {isLit && (
-        <group position={[0, 0.72, 0]}>
-          <mesh ref={flameRef}>
-            <coneGeometry args={[0.085, 0.24, 16]} />
+        <group ref={flameRef} position={[0, 0.74, 0]}>
+          <mesh>
+            <coneGeometry args={[0.09, 0.25, 16]} />
             <meshStandardMaterial
               color="#fef08a"
               emissive="#f59e0b"
-              emissiveIntensity={2.2}
+              emissiveIntensity={2.1}
               roughness={0.1}
             />
           </mesh>
           <mesh position={[0, -0.05, 0]}>
-            <sphereGeometry args={[0.075, 14, 14]} />
+            <sphereGeometry args={[0.082, 14, 14]} />
             <meshStandardMaterial
               color="#fb923c"
               emissive="#f97316"
               emissiveIntensity={1.6}
             />
+          </mesh>
+          {/* Bright inner core */}
+          <mesh position={[0, -0.03, 0]}>
+            <sphereGeometry args={[0.042, 10, 10]} />
+            <meshBasicMaterial color="#ffffff" />
           </mesh>
         </group>
       )}
@@ -117,7 +183,7 @@ function CakeModel({
 
   const pearlPositions = useMemo(() => {
     const arr: [number, number, number][] = [];
-    const count = 18;
+    const count = 20;
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2;
       arr.push([Math.cos(angle) * 1.48, -0.34, Math.sin(angle) * 1.48]);
@@ -127,88 +193,171 @@ function CakeModel({
 
   const topPearlPositions = useMemo(() => {
     const arr: [number, number, number][] = [];
-    const count = 14;
+    const count = 16;
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2;
-      arr.push([Math.cos(angle) * 1.02, 0.42, Math.sin(angle) * 1.02]);
+      arr.push([Math.cos(angle) * 1.03, 0.44, Math.sin(angle) * 1.03]);
     }
     return arr;
+  }, []);
+
+  // Melting cream frosting drips around both tiers
+  const bottomDrips = useMemo(() => {
+    return Array.from({ length: 18 }, (_, i) => {
+      const angle = (i / 18) * Math.PI * 2;
+      const len = 0.18 + ((i * 7) % 5) * 0.055;
+      return {
+        x: Math.cos(angle) * 1.47,
+        z: Math.sin(angle) * 1.47,
+        len,
+      };
+    });
+  }, []);
+
+  const topDrips = useMemo(() => {
+    return Array.from({ length: 14 }, (_, i) => {
+      const angle = (i / 14) * Math.PI * 2 + 0.15;
+      const len = 0.14 + ((i * 5) % 4) * 0.05;
+      return {
+        x: Math.cos(angle) * 1.02,
+        z: Math.sin(angle) * 1.02,
+        len,
+      };
+    });
+  }, []);
+
+  // Colorful 3D sprinkles around bottom tier
+  const sprinkles = useMemo(() => {
+    return Array.from({ length: 24 }, (_, i) => {
+      const angle = (i / 24) * Math.PI * 2 + 0.1;
+      const y = -0.2 + ((i * 3) % 5) * 0.1;
+      return {
+        pos: [Math.cos(angle) * 1.49, y, Math.sin(angle) * 1.49] as [number, number, number],
+        rot: [0.3 * i, angle, 0.5 * i] as [number, number, number],
+        color: SPRINKLE_COLORS[i % SPRINKLE_COLORS.length],
+      };
+    });
   }, []);
 
   const candlePositions = useMemo(() => {
     const arr: [number, number, number][] = [];
     for (let i = 0; i < 5; i++) {
       const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
-      arr.push([Math.cos(angle) * 0.58, 1.05, Math.sin(angle) * 0.58]);
+      arr.push([Math.cos(angle) * 0.58, 1.08, Math.sin(angle) * 0.58]);
     }
     return arr;
   }, []);
 
   useFrame((state) => {
     if (!cakeGroupRef.current) return;
-    cakeGroupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.35) * 0.18;
+    cakeGroupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.35) * 0.2;
   });
 
   return (
-    <group ref={cakeGroupRef} position={[0, -0.35, 0]}>
-      {/* Golden Princess Plate */}
+    <group ref={cakeGroupRef} position={[0, -0.32, 0]}>
+      {/* Golden Princess Pedestal Cake Stand */}
       <mesh position={[0, -0.52, 0]}>
-        <cylinderGeometry args={[1.85, 1.65, 0.16, 40]} />
-        <meshStandardMaterial color="#fde68a" metalness={0.35} roughness={0.25} />
+        <cylinderGeometry args={[1.88, 1.66, 0.15, 42]} />
+        <meshPhysicalMaterial color="#fde68a" metalness={0.45} roughness={0.2} clearcoat={0.6} />
+      </mesh>
+      <mesh position={[0, -0.78, 0]}>
+        <cylinderGeometry args={[0.42, 0.72, 0.42, 28]} />
+        <meshPhysicalMaterial color="#fbbf24" metalness={0.45} roughness={0.22} clearcoat={0.5} />
       </mesh>
 
       {/* Bottom Cake Tier — Strawberry Pink */}
       <mesh position={[0, -0.02, 0]}>
-        <cylinderGeometry args={[1.45, 1.5, 0.86, 36]} />
-        <meshStandardMaterial color="#ff9ec9" roughness={0.38} />
+        <cylinderGeometry args={[1.45, 1.5, 0.86, 40]} />
+        <meshPhysicalMaterial color="#ff9ec9" roughness={0.32} clearcoat={0.25} />
       </mesh>
 
       {/* Bottom Tier Creamy Icing Top */}
       <mesh position={[0, 0.4, 0]}>
-        <cylinderGeometry args={[1.48, 1.48, 0.1, 36]} />
-        <meshStandardMaterial color="#fff5fa" roughness={0.3} />
+        <cylinderGeometry args={[1.49, 1.49, 0.11, 40]} />
+        <meshPhysicalMaterial color="#fff5fa" roughness={0.24} clearcoat={0.5} />
       </mesh>
+
+      {/* Bottom Melting Icing Drips */}
+      {bottomDrips.map((d, idx) => (
+        <group key={`bd-${idx}`} position={[d.x, 0.36 - d.len / 2, d.z]}>
+          <mesh>
+            <cylinderGeometry args={[0.075, 0.068, d.len, 12]} />
+            <meshPhysicalMaterial color="#fff5fa" roughness={0.24} clearcoat={0.5} />
+          </mesh>
+          <mesh position={[0, -d.len / 2, 0]}>
+            <sphereGeometry args={[0.068, 12, 12]} />
+            <meshPhysicalMaterial color="#fff5fa" roughness={0.24} clearcoat={0.5} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Colorful 3D Sprinkles */}
+      {sprinkles.map((s, idx) => (
+        <mesh key={`sp-${idx}`} position={s.pos} rotation={s.rot}>
+          <capsuleGeometry args={[0.022, 0.06, 4, 8]} />
+          <meshStandardMaterial color={s.color} roughness={0.25} />
+        </mesh>
+      ))}
 
       {/* Pearl Piping Bottom */}
       {pearlPositions.map((pos, idx) => (
         <mesh key={`p1-${idx}`} position={pos}>
-          <sphereGeometry args={[0.1, 14, 14]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.25} />
+          <sphereGeometry args={[0.095, 14, 14]} />
+          <meshPhysicalMaterial color="#ffffff" roughness={0.18} clearcoat={0.7} />
         </mesh>
       ))}
 
+      {/* Cute Macarons & Strawberries sitting on the bottom ledge! */}
+      <MiniMacaron3D position={[1.22, 0.54, 0.35]} color="#ff7ab6" rotation={[0.1, 0, -0.2]} />
+      <MiniMacaron3D position={[-1.22, 0.54, 0.35]} color="#7dd3fc" rotation={[0.1, 0, 0.2]} />
+      <MiniStrawberry3D position={[0.92, 0.55, 0.92]} />
+      <MiniStrawberry3D position={[-0.92, 0.55, 0.92]} />
+      <MiniMacaron3D position={[0, 0.54, 1.24]} color="#fde047" rotation={[0.2, 0, 0]} />
+
       {/* Top Cake Tier — Dreamy Kuromi Lavender */}
-      <mesh position={[0, 0.72, 0]}>
-        <cylinderGeometry args={[1.0, 1.04, 0.68, 36]} />
-        <meshStandardMaterial color="#d8b4fe" roughness={0.35} />
+      <mesh position={[0, 0.74, 0]}>
+        <cylinderGeometry args={[1.0, 1.04, 0.68, 40]} />
+        <meshPhysicalMaterial color="#d8b4fe" roughness={0.3} clearcoat={0.25} />
       </mesh>
 
       {/* Top Tier Frosting Cap */}
-      <mesh position={[0, 1.05, 0]}>
-        <cylinderGeometry args={[1.03, 1.03, 0.1, 36]} />
-        <meshStandardMaterial color="#ffe4f3" roughness={0.3} />
+      <mesh position={[0, 1.07, 0]}>
+        <cylinderGeometry args={[1.04, 1.04, 0.1, 40]} />
+        <meshPhysicalMaterial color="#ffe4f3" roughness={0.24} clearcoat={0.5} />
       </mesh>
+
+      {/* Top Melting Icing Drips */}
+      {topDrips.map((d, idx) => (
+        <group key={`td-${idx}`} position={[d.x, 1.04 - d.len / 2, d.z]}>
+          <mesh>
+            <cylinderGeometry args={[0.062, 0.056, d.len, 10]} />
+            <meshPhysicalMaterial color="#ffe4f3" roughness={0.24} clearcoat={0.5} />
+          </mesh>
+          <mesh position={[0, -d.len / 2, 0]}>
+            <sphereGeometry args={[0.056, 10, 10]} />
+            <meshPhysicalMaterial color="#ffe4f3" roughness={0.24} clearcoat={0.5} />
+          </mesh>
+        </group>
+      ))}
 
       {/* Pearl Piping Top */}
       {topPearlPositions.map((pos, idx) => (
         <mesh key={`p2-${idx}`} position={pos}>
-          <sphereGeometry args={[0.085, 14, 14]} />
-          <meshStandardMaterial color="#ff85c0" roughness={0.25} />
+          <sphereGeometry args={[0.08, 14, 14]} />
+          <meshPhysicalMaterial color="#ff85c0" roughness={0.2} clearcoat={0.7} />
         </mesh>
       ))}
 
-      {/* Center Golden Star "5" Topper */}
-      <Float speed={2.5} floatIntensity={0.25} rotationIntensity={0.2}>
-        <mesh position={[0, 1.46, 0]}>
-          <octahedronGeometry args={[0.24, 0]} />
-          <meshStandardMaterial
-            color="#fbbf24"
-            metalness={0.4}
-            roughness={0.2}
-            emissive="#f59e0b"
-            emissiveIntensity={allBlown ? 0.8 : 0.25}
-          />
-        </mesh>
+      {/* Center Beveled 5-Pointed Golden Star Topper */}
+      <Float speed={2.6} floatIntensity={0.22} rotationIntensity={0.25}>
+        <ExtrudedStar3D
+          position={[0, 1.56, 0]}
+          scale={0.85}
+          color="#fde047"
+          emissive="#f59e0b"
+          emissiveIntensity={allBlown ? 0.9 : 0.35}
+          spin
+        />
       </Float>
 
       {/* 5 Interactive Candles */}
@@ -241,37 +390,110 @@ function CakeStage({
 
   return (
     <>
-      <ambientLight intensity={1.15} />
-      <directionalLight position={[4, 7, 5]} intensity={1.1} color="#fff7ed" />
-      <pointLight position={[-3, 3, 2]} intensity={0.7} color="#f472b6" />
-      <pointLight position={[3, 2, 2]} intensity={0.6} color="#c084fc" />
+      {/* Studio pastel lighting for glossy toy-vinyl highlights */}
+      <ambientLight intensity={1.05} />
+      <hemisphereLight args={["#fff5fa", "#e9d5ff", 0.65]} />
+      <directionalLight position={[4, 8, 5]} intensity={1.25} color="#fff7ed" />
+      <directionalLight position={[-4, 5, 3]} intensity={0.55} color="#fbcfe8" />
+      <pointLight position={[-3, 3, 2]} intensity={0.65} color="#f472b6" />
+      <pointLight position={[3, 2.5, 2]} intensity={0.6} color="#c084fc" />
       {litCount > 0 && (
         <pointLight
-          position={[0, 1.8, 0.5]}
-          intensity={0.45 + litCount * 0.22}
+          position={[0, 1.9, 0.6]}
+          intensity={0.5 + litCount * 0.24}
           color="#fde047"
         />
       )}
 
-      <RainbowArch3D position={[0, -0.8, -3.5]} scale={isNarrow ? 0.92 : 1.15} />
-      <FluffyCloud3D position={[isNarrow ? -2.2 : -3.3, 1.4, -2.5]} scale={isNarrow ? 0.65 : 0.85} tint="#ffffff" />
-      <FluffyCloud3D position={[isNarrow ? 2.2 : 3.3, 1.2, -2.2]} scale={isNarrow ? 0.68 : 0.9} tint="#fff0f7" />
-      <FluffyCloud3D position={[isNarrow ? -1.8 : -2.6, -1.2, -1.8]} scale={isNarrow ? 0.55 : 0.7} tint="#f3e8ff" />
+      {/* Enchanted Princess Castle framed cleanly inside the Rainbow Arch */}
+      <FairyCastle3D
+        position={[0, isNarrow ? -0.15 : -0.22, -4.9]}
+        scale={isNarrow ? 0.54 : 0.72}
+      />
+      <RainbowArch3D position={[0, -0.15, -3.7]} scale={isNarrow ? 1.04 : 1.28} />
+      <FluffyCloud3D
+        position={[isNarrow ? -2.1 : -3.5, 1.85, -2.6]}
+        scale={isNarrow ? 0.58 : 0.82}
+        tint="#ffffff"
+      />
+      <FluffyCloud3D
+        position={[isNarrow ? 2.1 : 3.5, 1.65, -2.3]}
+        scale={isNarrow ? 0.6 : 0.86}
+        tint="#fff0f7"
+      />
 
+      {/* Winged Glossy Unicorn in front-left on the ground */}
       <CuteUnicorn3D
-        position={isNarrow ? [-1.45, -0.95, -1.1] : [-2.35, -0.75, -0.2]}
+        position={isNarrow ? [-1.18, -1.28, 1.15] : [-2.25, -1.22, 0.75]}
         rotation={[0, 0.55, 0]}
-        scale={isNarrow ? 0.62 : 0.85}
+        scale={isNarrow ? 0.52 : 0.76}
         celebrating={allBlown}
       />
 
-      <group scale={isNarrow ? 0.82 : 1}>
+      {/* Kawaii Pink & Purple Bunny Friends on the ground */}
+      <KawaiiBunnyFriend3D
+        variant="pink"
+        position={isNarrow ? [1.18, -1.26, 1.05] : [2.15, -1.22, 0.85]}
+        rotation={[0, -0.45, 0]}
+        scale={isNarrow ? 0.58 : 0.82}
+      />
+      {!isNarrow && (
+        <KawaiiBunnyFriend3D
+          variant="purple"
+          position={[2.95, -1.22, -0.25]}
+          rotation={[0, -0.65, 0]}
+          scale={0.78}
+        />
+      )}
+
+      {/* Wrapped 3D Birthday Gift Boxes on the ground */}
+      <KawaiiGiftBox3D
+        position={isNarrow ? [0.78, -1.32, 1.55] : [1.42, -1.28, 1.45]}
+        rotation={[0, -0.3, 0]}
+        scale={isNarrow ? 0.44 : 0.64}
+        boxColor="#ff85c0"
+        ribbonColor="#fde047"
+      />
+      <KawaiiGiftBox3D
+        position={isNarrow ? [-0.62, -1.32, 1.62] : [-1.45, -1.28, 1.5]}
+        rotation={[0, 0.4, 0]}
+        scale={isNarrow ? 0.4 : 0.58}
+        boxColor="#c084fc"
+        ribbonColor="#ff85c0"
+      />
+
+      {/* Floating Fairy Wand & 3D Hearts */}
+      <MagicWand3D
+        position={isNarrow ? [1.32, 0.4, -0.4] : [2.5, 0.55, -0.4]}
+        rotation={[0, -0.2, -0.38]}
+        scale={isNarrow ? 0.56 : 0.75}
+      />
+      <Float speed={2.2} floatIntensity={0.35}>
+        <ExtrudedHeart3D
+          position={isNarrow ? [-1.32, 0.5, -0.3] : [-2.45, 0.75, -0.3]}
+          scale={isNarrow ? 0.44 : 0.58}
+          color="#ff6eb4"
+        />
+      </Float>
+
+      {/* Center Deluxe 2-Tier Cake lowered onto the ground so the castle shines above it */}
+      <group position={isNarrow ? [0, -0.82, 0.25] : [0, -0.78, 0.35]} scale={isNarrow ? 0.64 : 0.78}>
         <CakeModel litCandles={litCandles} onBlowCandle={onBlowCandle} />
       </group>
 
+      {/* Soft grounded shadow plane */}
+      <ContactShadows
+        position={[0, -1.45, 0.2]}
+        opacity={0.32}
+        scale={10}
+        blur={2.4}
+        far={3.5}
+        color="#7e22ce"
+      />
+
       <Sparkles
-        count={50}
-        scale={[isNarrow ? 4.5 : 7, 4.5, 4]}
+        count={55}
+        scale={[isNarrow ? 4.8 : 7.5, 4.8, 4.5]}
         size={4}
         speed={0.45}
         color="#fef08a"
@@ -318,9 +540,9 @@ export function BirthdayCakeScene() {
 
   return (
     <div className="relative w-full">
-      <div className="relative h-[380px] w-full overflow-hidden rounded-[2rem] border-4 border-white/90 bg-gradient-to-b from-sky-200/80 via-pink-100/75 to-purple-200/80 shadow-2xl shadow-purple-300/40 sm:h-[460px]">
+      <div className="relative h-[400px] w-full overflow-hidden rounded-[2rem] border-4 border-white/90 bg-gradient-to-b from-sky-200/80 via-pink-100/75 to-purple-200/80 shadow-2xl shadow-purple-300/40 sm:h-[480px]">
         <Canvas
-          camera={{ position: [0, 2.2, 5.8], fov: 42 }}
+          camera={{ position: [0, 1.8, 6.4], fov: 44 }}
           dpr={[1, 2]}
           gl={{ antialias: true, alpha: true }}
         >
@@ -332,30 +554,16 @@ export function BirthdayCakeScene() {
           />
         </Canvas>
 
-        {/* Top floating pill instruction */}
-        <div className="pointer-events-none absolute top-3 left-1/2 z-10 w-[92%] max-w-md -translate-x-1/2 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border-2 border-white/90 bg-white/85 px-4 py-1.5 text-xs font-bold text-purple-900 shadow-md backdrop-blur sm:text-sm">
-            <SparklesIcon className="h-4 w-4 shrink-0 text-pink-500" />
-            <span>
-              {allBlown
-                ? BIRTHDAY_CONFIG.wishCelebration
-                : `${BIRTHDAY_CONFIG.wishPrompt} (${BIRTHDAY_CONFIG.candlesLeft(litCount)})`}
-            </span>
-          </div>
-        </div>
-
-        {/* Relight button once all 5 candles are blown */}
+        {/* Subtle icon-only relight button once all 5 candles are blown out */}
         {allBlown && (
-          <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2">
-            <button
-              type="button"
-              onClick={handleRelight}
-              className="font-display inline-flex cursor-pointer items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-6 py-2.5 text-base font-bold text-white shadow-lg ring-2 ring-white transition hover:scale-105 active:scale-95"
-            >
-              <RotateCcw className="h-4 w-4" />
-              {BIRTHDAY_CONFIG.relightCandles}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleRelight}
+            aria-label={BIRTHDAY_CONFIG.relightCandles}
+            className="absolute top-3 left-3 z-10 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-lg ring-2 ring-white transition hover:scale-105 active:scale-95"
+          >
+            <RotateCcw className="h-5 w-5" />
+          </button>
         )}
       </div>
     </div>

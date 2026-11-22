@@ -6,13 +6,20 @@ import { Sparkles } from "@react-three/drei";
 import * as THREE from "three";
 import confetti from "canvas-confetti";
 import { ChevronLeft, ChevronRight, Crown, RotateCcw, Sparkles as SparklesIcon } from "lucide-react";
-import { RainbowArch3D, FluffyCloud3D, CuteUnicorn3D } from "./MagicalDecor3D";
+import {
+  RainbowArch3D,
+  FluffyCloud3D,
+  CuteUnicorn3D,
+  FairyCastle3D,
+  ExtrudedStar3D,
+  ExtrudedHeart3D,
+} from "./MagicalDecor3D";
 import { playPopSound, playSparkleSound, playVictoryFanfare } from "@/lib/soundEffects";
 import { t } from "@/config/translate";
 
 const TARGET_TREATS = 15;
 
-type TreatKind = "cupcake" | "star" | "strawberry" | "gem";
+type TreatKind = "cupcake" | "star" | "strawberry" | "gem" | "macaron";
 
 interface FallingTreat {
   id: number;
@@ -22,7 +29,7 @@ interface FallingTreat {
   kind: TreatKind;
 }
 
-const TREAT_KINDS: TreatKind[] = ["cupcake", "star", "strawberry", "gem"];
+const TREAT_KINDS: TreatKind[] = ["cupcake", "star", "strawberry", "gem", "macaron"];
 
 function spawnTreat(id: number, startY = 4.0): FallingTreat {
   return {
@@ -38,17 +45,24 @@ function TreatMesh3D({ kind }: { kind: TreatKind }) {
   if (kind === "cupcake") {
     return (
       <group>
-        <mesh position={[0, -0.14, 0]}>
-          <cylinderGeometry args={[0.24, 0.17, 0.28, 16]} />
-          <meshStandardMaterial color="#fde047" roughness={0.4} />
+        {/* Fluted golden wrapper */}
+        <mesh position={[0, -0.15, 0]}>
+          <cylinderGeometry args={[0.25, 0.17, 0.28, 12]} />
+          <meshPhysicalMaterial color="#fde047" roughness={0.35} clearcoat={0.3} />
         </mesh>
-        <mesh position={[0, 0.08, 0]}>
-          <sphereGeometry args={[0.26, 18, 18]} />
-          <meshStandardMaterial color="#ff7ab6" roughness={0.3} />
+        {/* Two-layer pink frosting swirl */}
+        <mesh position={[0, 0.06, 0]} scale={[1.05, 0.85, 1.05]}>
+          <sphereGeometry args={[0.26, 20, 20]} />
+          <meshPhysicalMaterial color="#ff7ab6" roughness={0.22} clearcoat={0.6} />
         </mesh>
-        <mesh position={[0, 0.34, 0]}>
-          <sphereGeometry args={[0.09, 12, 12]} />
-          <meshStandardMaterial color="#ef4444" roughness={0.2} />
+        <mesh position={[0, 0.22, 0]} scale={[0.9, 0.85, 0.9]}>
+          <sphereGeometry args={[0.17, 16, 16]} />
+          <meshPhysicalMaterial color="#fbcfe8" roughness={0.22} clearcoat={0.6} />
+        </mesh>
+        {/* Glossy cherry on top */}
+        <mesh position={[0, 0.36, 0]}>
+          <sphereGeometry args={[0.09, 14, 14]} />
+          <meshPhysicalMaterial color="#f43f5e" roughness={0.12} clearcoat={1} />
         </mesh>
       </group>
     );
@@ -58,44 +72,41 @@ function TreatMesh3D({ kind }: { kind: TreatKind }) {
     return (
       <group>
         <mesh rotation={[Math.PI, 0, 0]}>
-          <coneGeometry args={[0.24, 0.44, 16]} />
-          <meshStandardMaterial color="#fb7185" roughness={0.3} />
+          <coneGeometry args={[0.24, 0.44, 18]} />
+          <meshPhysicalMaterial color="#fb7185" roughness={0.2} clearcoat={0.7} />
         </mesh>
         <mesh position={[0, 0.22, 0]}>
           <cylinderGeometry args={[0.22, 0.06, 0.1, 8]} />
-          <meshStandardMaterial color="#4ade80" roughness={0.4} />
+          <meshStandardMaterial color="#4ade80" roughness={0.35} />
+        </mesh>
+      </group>
+    );
+  }
+
+  if (kind === "macaron") {
+    return (
+      <group rotation={[0.25, 0, 0.18]}>
+        <mesh position={[0, 0.1, 0]} scale={[1, 0.55, 1]}>
+          <sphereGeometry args={[0.26, 18, 18]} />
+          <meshPhysicalMaterial color="#7dd3fc" roughness={0.22} clearcoat={0.6} />
+        </mesh>
+        <mesh position={[0, 0, 0]}>
+          <cylinderGeometry args={[0.24, 0.24, 0.09, 18]} />
+          <meshStandardMaterial color="#fffaf5" roughness={0.35} />
+        </mesh>
+        <mesh position={[0, -0.1, 0]} scale={[1, 0.55, 1]}>
+          <sphereGeometry args={[0.26, 18, 18]} />
+          <meshPhysicalMaterial color="#7dd3fc" roughness={0.22} clearcoat={0.6} />
         </mesh>
       </group>
     );
   }
 
   if (kind === "gem") {
-    return (
-      <mesh>
-        <octahedronGeometry args={[0.3, 0]} />
-        <meshStandardMaterial
-          color="#c084fc"
-          emissive="#a855f7"
-          emissiveIntensity={0.35}
-          metalness={0.3}
-          roughness={0.15}
-        />
-      </mesh>
-    );
+    return <ExtrudedHeart3D scale={0.75} color="#c084fc" emissive="#a855f7" emissiveIntensity={0.35} />;
   }
 
-  return (
-    <mesh>
-      <octahedronGeometry args={[0.32, 0]} />
-      <meshStandardMaterial
-        color="#fde047"
-        emissive="#f59e0b"
-        emissiveIntensity={0.45}
-        metalness={0.4}
-        roughness={0.2}
-      />
-    </mesh>
-  );
+  return <ExtrudedStar3D scale={0.95} color="#fde047" emissive="#f59e0b" emissiveIntensity={0.5} />;
 }
 
 function CatcherWorld({
@@ -172,10 +183,12 @@ function CatcherWorld({
 
   return (
     <>
-      <ambientLight intensity={1.2} />
-      <directionalLight position={[4, 7, 5]} intensity={1.1} />
+      <ambientLight intensity={1.1} />
+      <hemisphereLight args={["#fff5fa", "#e9d5ff", 0.6]} />
+      <directionalLight position={[4, 7, 5]} intensity={1.2} />
       <pointLight position={[-3, 3, 2]} intensity={0.6} color="#f472b6" />
 
+      <FairyCastle3D position={[0, -1.5, -5.8]} scale={isNarrow ? 0.58 : 0.85} />
       <RainbowArch3D position={[0, -1.5, -4.2]} scale={isNarrow ? 1.0 : 1.5} />
       <FluffyCloud3D
         position={[-playLimitX * 1.15, 2.2, -3]}

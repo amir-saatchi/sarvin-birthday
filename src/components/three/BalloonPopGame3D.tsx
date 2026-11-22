@@ -6,7 +6,14 @@ import { Sparkles } from "@react-three/drei";
 import * as THREE from "three";
 import confetti from "canvas-confetti";
 import { RotateCcw, Star, Trophy } from "lucide-react";
-import { RainbowArch3D, FluffyCloud3D } from "./MagicalDecor3D";
+import {
+  RainbowArch3D,
+  FluffyCloud3D,
+  FairyCastle3D,
+  ExtrudedStar3D,
+  ExtrudedHeart3D,
+  KawaiiBunnyFriend3D,
+} from "./MagicalDecor3D";
 import { playPopSound, playSparkleSound, playVictoryFanfare } from "@/lib/soundEffects";
 import { t, formatNumber } from "@/config/translate";
 
@@ -27,6 +34,7 @@ interface BalloonData {
   speed: number;
   swayOffset: number;
   color: string;
+  shape: "round" | "heart" | "star";
   isStar: boolean;
 }
 
@@ -38,7 +46,10 @@ interface BurstData {
 }
 
 function createBalloon(id: number, startRandomY: boolean): BalloonData {
-  const isStar = Math.random() < 0.22;
+  const roll = Math.random();
+  const shape: "round" | "heart" | "star" =
+    roll < 0.22 ? "star" : roll < 0.52 ? "heart" : "round";
+  const isStar = shape === "star";
   return {
     id,
     xNorm: (Math.random() - 0.5) * 1.75, // stays within [-0.875, +0.875] of safe visible width
@@ -49,6 +60,7 @@ function createBalloon(id: number, startRandomY: boolean): BalloonData {
     color: isStar
       ? "#fbbf24"
       : BALLOON_COLORS[Math.floor(Math.random() * BALLOON_COLORS.length)],
+    shape,
     isStar,
   };
 }
@@ -160,52 +172,46 @@ function FloatingBalloon3D({
         <meshBasicMaterial />
       </mesh>
 
-      {data.isStar ? (
+      {data.shape === "star" ? (
+        <ExtrudedStar3D scale={1.35} color="#fde047" emissive="#f59e0b" emissiveIntensity={0.55} />
+      ) : data.shape === "heart" ? (
         <group>
-          <mesh>
-            <octahedronGeometry args={[0.54, 0]} />
-            <meshStandardMaterial
-              color="#fde047"
-              emissive="#f59e0b"
-              emissiveIntensity={0.45}
-              metalness={0.35}
-              roughness={0.2}
-            />
-          </mesh>
-          <mesh rotation={[0, Math.PI / 4, Math.PI / 4]}>
-            <octahedronGeometry args={[0.5, 0]} />
-            <meshStandardMaterial
-              color="#fef08a"
-              emissive="#fbbf24"
-              emissiveIntensity={0.35}
-              metalness={0.3}
-              roughness={0.2}
-            />
+          <ExtrudedHeart3D scale={1.15} color={data.color} emissive={data.color} emissiveIntensity={0.18} />
+          {/* Balloon string */}
+          <mesh position={[0, -0.92, 0]}>
+            <cylinderGeometry args={[0.012, 0.012, 0.85, 6]} />
+            <meshStandardMaterial color="#ffffff" />
           </mesh>
         </group>
       ) : (
         <group>
-          {/* Glossy balloon body */}
+          {/* Glossy toy-vinyl balloon body */}
           <mesh scale={[0.92, 1.12, 0.92]}>
-            <sphereGeometry args={[0.52, 24, 24]} />
-            <meshStandardMaterial
+            <sphereGeometry args={[0.52, 26, 26]} />
+            <meshPhysicalMaterial
               color={data.color}
-              roughness={0.18}
-              metalness={0.08}
+              roughness={0.12}
+              metalness={0.05}
+              clearcoat={1}
+              clearcoatRoughness={0.1}
             />
           </mesh>
           {/* Cute glossy highlight dot */}
           <mesh position={[-0.19, 0.23, 0.34]} scale={[0.7, 1.1, 0.5]}>
             <sphereGeometry args={[0.1, 12, 12]} />
-            <meshBasicMaterial color="#ffffff" transparent opacity={0.7} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.75} />
           </mesh>
-          {/* Balloon knot */}
+          {/* Balloon knot + tiny satin ribbon collar */}
           <mesh position={[0, -0.6, 0]}>
             <coneGeometry args={[0.09, 0.14, 12]} />
-            <meshStandardMaterial color={data.color} roughness={0.3} />
+            <meshPhysicalMaterial color={data.color} roughness={0.25} clearcoat={0.6} />
+          </mesh>
+          <mesh position={[0, -0.65, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.06, 0.02, 8, 16]} />
+            <meshStandardMaterial color="#fde047" />
           </mesh>
           {/* Balloon string */}
-          <mesh position={[0, -1.04, 0]}>
+          <mesh position={[0, -1.06, 0]}>
             <cylinderGeometry args={[0.012, 0.012, 0.82, 6]} />
             <meshStandardMaterial color="#ffffff" />
           </mesh>
@@ -232,10 +238,12 @@ function BalloonWorld({
 
   return (
     <>
-      <ambientLight intensity={1.2} />
-      <directionalLight position={[4, 6, 5]} intensity={1.1} />
+      <ambientLight intensity={1.1} />
+      <hemisphereLight args={["#fff5fa", "#e9d5ff", 0.6]} />
+      <directionalLight position={[4, 6, 5]} intensity={1.2} />
       <pointLight position={[-4, 2, 3]} intensity={0.7} color="#f472b6" />
 
+      <FairyCastle3D position={[0, -1.5, -5.8]} scale={isNarrow ? 0.6 : 0.88} />
       <RainbowArch3D position={[0, -1.5, -4]} scale={rainbowScale} />
       <FluffyCloud3D
         position={[-halfWidth * 1.15, 2.2, -3]}
@@ -247,7 +255,19 @@ function BalloonWorld({
         scale={isNarrow ? 0.76 : 1.1}
         tint="#fff0f7"
       />
-      <FluffyCloud3D position={[0, -2.6, -2.2]} scale={isNarrow ? 0.9 : 1.2} tint="#f3e8ff" />
+      <FluffyCloud3D position={[0, -2.65, -2.2]} scale={isNarrow ? 0.9 : 1.15} tint="#f3e8ff" />
+      <KawaiiBunnyFriend3D
+        variant="pink"
+        position={[isNarrow ? -0.35 : -0.45, -1.98, -1.45]}
+        rotation={[0, 0.2, 0]}
+        scale={isNarrow ? 0.58 : 0.72}
+      />
+      <KawaiiBunnyFriend3D
+        variant="purple"
+        position={[isNarrow ? 0.35 : 0.45, -1.98, -1.45]}
+        rotation={[0, -0.2, 0]}
+        scale={isNarrow ? 0.58 : 0.72}
+      />
 
       {balloons.map((b) => (
         <FloatingBalloon3D

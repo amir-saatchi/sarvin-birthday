@@ -14,7 +14,7 @@ export const TRANSLATIONS = {
     meta: {
       title: "تولدت مبارک سروین ۵ ساله! | سرزمین جادویی تک‌شاخ و رنگین‌کمان",
       description:
-        "وب‌سایت تولد ۵ سالگی پرنسس سروین با موسیقی، کیک سه‌بعدی جادویی و بازی‌های سه‌بعدی تک‌شاخ و بادکنک.",
+        "وب‌سایت تولد ۵ سالگی پرنسس سروین با موسیقی، کیک جادویی و بازی‌های تک‌شاخ و بادکنک.",
     },
     birthday: {
       name: "سروین",
@@ -22,7 +22,7 @@ export const TRANSLATIONS = {
       badge: "پرنسس سروین ۵ ساله شد!",
       headline: "تولد ۵ سالگیت مبارک، سروین جان!",
       subheadline: "به سرزمین جادویی تک‌شاخ، رنگین‌کمان و پری‌های مهربان خوش اومدی",
-      wishPrompt: "روی هر ۵ شمع روشن کیک سه‌بعدی بزن تا آرزو کنی!",
+      wishPrompt: "روی هر ۵ شمع روشن کیک بزن تا آرزو کنی!",
       candlesLeft: (count: number) => `${formatNumber(count, "fa")} شمع باقی مونده`,
       wishCelebration: "آفرین! هر ۵ شمع رو فوت کردی! ان‌شاءالله همه آرزوهای قشنگت برآورده بشه، پرنسس سروین!",
       relightCandles: "روشن کردن دوباره هر ۵ شمع!",
@@ -34,7 +34,7 @@ export const TRANSLATIONS = {
     giftReveal: {
       badge: "سورپرایز ویژه تولد",
       greeting: "سلام سروین جان!",
-      subtitle: "قلعه جادویی تولد ۵ سالگیت با موسیقی و بازی‌های سه‌بعدی آماده است!",
+      subtitle: "قلعه جادویی تولد ۵ سالگیت با موسیقی و بازی‌های جذاب آماده است!",
       openButton: "کادو رو باز کن!",
     },
     nav: {
@@ -42,9 +42,15 @@ export const TRANSLATIONS = {
       brandName: "سروین",
       brandAge: "۵ ساله",
       castle: "قلعه تولد",
-      balloonGame: "بادکنک سه‌بعدی",
-      unicornGame: "تک‌شاخ سه‌بعدی",
+      games: "بازی‌ها",
+      balloonGame: "بادکنک‌ها",
+      unicornGame: "تک‌شاخ",
       backToCastle: "بازگشت به قلعه",
+      backToGames: "بازگشت به بازی‌ها",
+    },
+    gamesList: {
+      title: "سرزمین بازی‌های سروین",
+      subtitle: "یه بازی جادویی انتخاب کن و لذت ببر!",
     },
     audio: {
       controlsAriaLabel: "کنترل موسیقی تولد",
@@ -56,20 +62,23 @@ export const TRANSLATIONS = {
       unmuteAria: "وصل صدا",
     },
     home: {
-      loadingCake: "در حال آماده کردن کیک سه‌بعدی جادویی سروین...",
-      gamesSectionTitle: "بازی‌های سه‌بعدی تولدت رو بازی کن!",
-      gameTag3D: "بازی سه‌بعدی",
+      loadingCake: "در حال آماده کردن کیک جادویی سروین...",
+      gamesSectionTitle: "بازی‌های تولدت رو بازی کن!",
+      gameTag3D: "بازی جادویی",
       balloonCardTitle: "ترکوندن بادکنک‌های رنگین‌کمانی",
       balloonCardDesc:
         "روی بادکنک‌های پاستلی و ستاره‌های طلایی بزن تا با جرقه‌های رنگین‌کمانی بترکن!",
       unicornCardTitle: "تک‌شاخِ شکارچی ابرها",
       unicornCardDesc:
         "تک‌شاخ نازت رو روی ابر حرکت بده تا کاپ‌کیک، توت‌فرنگی و ستاره‌های جادویی رو بگیری!",
+      cakeCardTitle: "کیک‌سازی جادویی",
+      cakeCardDesc:
+        "رنگ خامه، سس شکلات و توت‌فرنگی، ماکارون و عروسک بالای کیک تولدت رو خودت انتخاب کن!",
     },
     balloonGame: {
-      title: "بازی سه‌بعدی بادکنک‌های رنگین‌کمانی",
+      title: "بادکنک‌های رنگین‌کمانی",
       subtitle: "روی بادکنک‌ها و ستاره‌های طلایی (+۲ امتیاز!) بزن تا تاج رنگین‌کمانی بگیری!",
-      loading: "در حال باد کردن بادکنک‌های سه‌بعدی...",
+      loading: "در حال باد کردن بادکنک‌های رنگین‌کمانی...",
       crownSingular: "تاج",
       crownPlural: "تاج",
       restart: "شروع دوباره",
@@ -77,9 +86,9 @@ export const TRANSLATIONS = {
       tip: "نکته: ستاره‌های طلایی پری‌ها ۲ امتیاز دارن!",
     },
     unicornGame: {
-      title: "بازی سه‌بعدی تک‌شاخ روی ابر",
+      title: "تک‌شاخ روی ابر",
       subtitle: "انگشت، ماوس یا کلیدهای جهت‌نما رو حرکت بده تا ۱۵ خوراکی جادویی رو بگیری!",
-      loading: "در حال بیدار کردن تک‌شاخ سه‌بعدی...",
+      loading: "در حال بیدار کردن تک‌شاخ...",
       treatsLabel: (caught: number, target: number) =>
         `خوراکی‌ها: ${formatNumber(caught, "fa")} از ${formatNumber(target, "fa")}`,
       restart: "شروع دوباره",
@@ -91,6 +100,32 @@ export const TRANSLATIONS = {
         `همه ${formatNumber(target, "fa")} خوراکی جادویی تولد رو گرفتی! ببین تک‌شاخت چطور می‌رقصه!`,
       playAgain: "دوباره بازی کن!",
       tip: "کاپ‌کیک، توت‌فرنگی، الماس بنفش و ستاره‌های طلایی رو بگیر تا تاج پرنسس رو ببری!",
+    },
+    cakeStudio: {
+      title: "کیک‌سازی جادویی",
+      subtitle: "کیک تولدت رو هر طور دوست داری تزئین کن و بچرخون!",
+      loading: "در حال آماده کردن آشپزخانه جادویی...",
+      tabFrosting: "رنگ کیک",
+      tabDrip: "سس کیک",
+      tabToppings: "تزئینات",
+      tabTopper: "عروسک بالا",
+      surpriseBtn: "شانسی!",
+      partyBtn: "جشن!",
+      toppings: {
+        strawberries: "توت‌فرنگی",
+        macarons: "ماکارون",
+        sprinkles: "ترافل",
+        hearts: "قلب‌ها",
+        candles: "۵ شمع",
+      },
+      toppers: {
+        unicorn: "تک‌شاخ",
+        pinkBunny: "خرگوش صورتی",
+        purpleBunny: "خرگوش بنفش",
+        star: "ستاره طلایی",
+        gift: "کادو",
+      },
+      tip: "کیک رو با انگشت بچرخون و با دکمه‌ها هر چقدر دوست داری تزئینش کن!",
     },
   },
   en: {
@@ -125,9 +160,15 @@ export const TRANSLATIONS = {
       brandName: "Sarvin's",
       brandAge: "5th",
       castle: "Castle",
+      games: "Games",
       balloonGame: "3D Balloons",
       unicornGame: "3D Unicorn",
       backToCastle: "Back to Castle",
+      backToGames: "Back to Games",
+    },
+    gamesList: {
+      title: "Sarvin's 3D Game Land",
+      subtitle: "Pick a magical 3D birthday game and have fun!",
     },
     audio: {
       controlsAriaLabel: "Birthday Music Controls",
@@ -148,6 +189,9 @@ export const TRANSLATIONS = {
       unicornCardTitle: "Unicorn Cloud Catcher",
       unicornCardDesc:
         "Slide your cute 3D unicorn across the rainbow cloud to catch falling cupcakes, strawberries & stars!",
+      cakeCardTitle: "Cake Decorator Studio",
+      cakeCardDesc:
+        "Design your dream birthday cake with pastel frostings, drips, macarons, strawberries & cute toppers!",
     },
     balloonGame: {
       title: "3D Rainbow Balloon Pop",
@@ -173,6 +217,32 @@ export const TRANSLATIONS = {
         `You caught all ${target} magical birthday treats! Look at your dancing unicorn!`,
       playAgain: "Play Again!",
       tip: "Catch cupcakes, strawberries, purple gems & golden stars to win the Princess Tiara!",
+    },
+    cakeStudio: {
+      title: "Cake Decorator Studio",
+      subtitle: "Design and spin your own magical birthday cake!",
+      loading: "Preparing the Magical Bakery...",
+      tabFrosting: "Cake Color",
+      tabDrip: "Icing Drip",
+      tabToppings: "Toppings",
+      tabTopper: "Topper",
+      surpriseBtn: "Surprise!",
+      partyBtn: "Party!",
+      toppings: {
+        strawberries: "Strawberries",
+        macarons: "Macarons",
+        sprinkles: "Sprinkles",
+        hearts: "Hearts",
+        candles: "5 Candles",
+      },
+      toppers: {
+        unicorn: "Unicorn",
+        pinkBunny: "Pink Bunny",
+        purpleBunny: "Purple Bunny",
+        star: "Gold Star",
+        gift: "Gift Box",
+      },
+      tip: "Drag to spin your cake around and tap the buttons to decorate!",
     },
   },
 } as const;
