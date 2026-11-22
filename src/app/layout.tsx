@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
-import { Fredoka, Nunito } from "next/font/google";
+import { Vazirmatn, Fredoka } from "next/font/google";
 import "./globals.css";
 import { AudioProvider } from "@/components/audio/AudioProvider";
 import { MusicControls } from "@/components/audio/MusicControls";
 import { GiftReveal } from "@/components/GiftReveal";
 import { Navbar } from "@/components/Navbar";
+import { ACTIVE_LOCALE, t } from "@/config/translate";
+
+const vazirmatn = Vazirmatn({
+  subsets: ["arabic", "latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  variable: "--font-vazirmatn",
+});
 
 const fredoka = Fredoka({
   subsets: ["latin"],
@@ -12,16 +19,9 @@ const fredoka = Fredoka({
   variable: "--font-fredoka",
 });
 
-const nunito = Nunito({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-nunito",
-});
-
 export const metadata: Metadata = {
-  title: "Happy 5th Birthday, Sarvin! | Magical Unicorn & Fairy Wonderland",
-  description:
-    "A magical 5th birthday website for Princess Sarvin with music, a 3D birthday cake, and 3D unicorn & rainbow mini-games.",
+  title: t.meta.title,
+  description: t.meta.description,
 };
 
 export default function RootLayout({
@@ -29,8 +29,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const dir = ACTIVE_LOCALE === "fa" ? "rtl" : "ltr";
+
   return (
-    <html lang="en" className={`${fredoka.variable} ${nunito.variable}`}>
+    <html lang={ACTIVE_LOCALE} dir={dir} className={`${vazirmatn.variable} ${fredoka.variable}`}>
       <body className="min-h-screen antialiased selection:bg-pink-300 selection:text-purple-900">
         <AudioProvider>
           <GiftReveal />

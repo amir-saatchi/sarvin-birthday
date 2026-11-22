@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Sparkles, Float } from "@react-three/drei";
 import * as THREE from "three";
 import confetti from "canvas-confetti";
@@ -225,6 +225,68 @@ function CakeModel({
   );
 }
 
+function CakeStage({
+  litCandles,
+  litCount,
+  allBlown,
+  onBlowCandle,
+}: {
+  litCandles: boolean[];
+  litCount: number;
+  allBlown: boolean;
+  onBlowCandle: (index: number) => void;
+}) {
+  const { viewport } = useThree();
+  const isNarrow = viewport.width < 5.4;
+
+  return (
+    <>
+      <ambientLight intensity={1.15} />
+      <directionalLight position={[4, 7, 5]} intensity={1.1} color="#fff7ed" />
+      <pointLight position={[-3, 3, 2]} intensity={0.7} color="#f472b6" />
+      <pointLight position={[3, 2, 2]} intensity={0.6} color="#c084fc" />
+      {litCount > 0 && (
+        <pointLight
+          position={[0, 1.8, 0.5]}
+          intensity={0.45 + litCount * 0.22}
+          color="#fde047"
+        />
+      )}
+
+      <RainbowArch3D position={[0, -0.8, -3.5]} scale={isNarrow ? 0.92 : 1.15} />
+      <FluffyCloud3D position={[isNarrow ? -2.2 : -3.3, 1.4, -2.5]} scale={isNarrow ? 0.65 : 0.85} tint="#ffffff" />
+      <FluffyCloud3D position={[isNarrow ? 2.2 : 3.3, 1.2, -2.2]} scale={isNarrow ? 0.68 : 0.9} tint="#fff0f7" />
+      <FluffyCloud3D position={[isNarrow ? -1.8 : -2.6, -1.2, -1.8]} scale={isNarrow ? 0.55 : 0.7} tint="#f3e8ff" />
+
+      <CuteUnicorn3D
+        position={isNarrow ? [-1.45, -0.95, -1.1] : [-2.35, -0.75, -0.2]}
+        rotation={[0, 0.55, 0]}
+        scale={isNarrow ? 0.62 : 0.85}
+        celebrating={allBlown}
+      />
+
+      <group scale={isNarrow ? 0.82 : 1}>
+        <CakeModel litCandles={litCandles} onBlowCandle={onBlowCandle} />
+      </group>
+
+      <Sparkles
+        count={50}
+        scale={[isNarrow ? 4.5 : 7, 4.5, 4]}
+        size={4}
+        speed={0.45}
+        color="#fef08a"
+      />
+
+      <OrbitControls
+        enableZoom={false}
+        enablePan={false}
+        minPolarAngle={Math.PI / 3.4}
+        maxPolarAngle={Math.PI / 2.15}
+      />
+    </>
+  );
+}
+
 export function BirthdayCakeScene() {
   const [litCandles, setLitCandles] = useState<boolean[]>([true, true, true, true, true]);
   const litCount = litCandles.filter(Boolean).length;
@@ -262,45 +324,11 @@ export function BirthdayCakeScene() {
           dpr={[1, 2]}
           gl={{ antialias: true, alpha: true }}
         >
-          <ambientLight intensity={1.15} />
-          <directionalLight position={[4, 7, 5]} intensity={1.1} color="#fff7ed" />
-          <pointLight position={[-3, 3, 2]} intensity={0.7} color="#f472b6" />
-          <pointLight position={[3, 2, 2]} intensity={0.6} color="#c084fc" />
-          {litCount > 0 && (
-            <pointLight
-              position={[0, 1.8, 0.5]}
-              intensity={0.45 + litCount * 0.22}
-              color="#fde047"
-            />
-          )}
-
-          <RainbowArch3D position={[0, -0.8, -3.5]} scale={1.15} />
-          <FluffyCloud3D position={[-3.3, 1.4, -2.5]} scale={0.85} tint="#ffffff" />
-          <FluffyCloud3D position={[3.3, 1.2, -2.2]} scale={0.9} tint="#fff0f7" />
-          <FluffyCloud3D position={[-2.6, -1.2, -1.8]} scale={0.7} tint="#f3e8ff" />
-
-          <CuteUnicorn3D
-            position={[-2.35, -0.75, -0.2]}
-            rotation={[0, 0.55, 0]}
-            scale={0.85}
-            celebrating={allBlown}
-          />
-
-          <CakeModel litCandles={litCandles} onBlowCandle={handleBlowCandle} />
-
-          <Sparkles
-            count={55}
-            scale={[7, 4.5, 4]}
-            size={4}
-            speed={0.45}
-            color="#fef08a"
-          />
-
-          <OrbitControls
-            enableZoom={false}
-            enablePan={false}
-            minPolarAngle={Math.PI / 3.4}
-            maxPolarAngle={Math.PI / 2.15}
+          <CakeStage
+            litCandles={litCandles}
+            litCount={litCount}
+            allBlown={allBlown}
+            onBlowCandle={handleBlowCandle}
           />
         </Canvas>
 
@@ -311,7 +339,7 @@ export function BirthdayCakeScene() {
             <span>
               {allBlown
                 ? BIRTHDAY_CONFIG.wishCelebration
-                : `${BIRTHDAY_CONFIG.wishPrompt} (${litCount} left)`}
+                : `${BIRTHDAY_CONFIG.wishPrompt} (${BIRTHDAY_CONFIG.candlesLeft(litCount)})`}
             </span>
           </div>
         </div>
@@ -325,7 +353,7 @@ export function BirthdayCakeScene() {
               className="font-display inline-flex cursor-pointer items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-6 py-2.5 text-base font-bold text-white shadow-lg ring-2 ring-white transition hover:scale-105 active:scale-95"
             >
               <RotateCcw className="h-4 w-4" />
-              Relight All 5 Candles!
+              {BIRTHDAY_CONFIG.relightCandles}
             </button>
           </div>
         )}

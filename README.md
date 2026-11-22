@@ -21,9 +21,9 @@ export const MUSIC_TRACKS: MusicTrack[] = [
 ];
 ```
 
-## How to Customize the Birthday Message
+## How to Customize Texts & Language
 
-Edit `src/config/birthday.ts` to update the headline, message, or signature.
+All Persian (and English) UI texts, birthday wishes, and game labels live in `src/config/translate.ts` (no hardcoded Persian strings in component files). Edit `TRANSLATIONS.fa` to customize any text, or change `ACTIVE_LOCALE` between `"fa"` and `"en"`.
 
 ## Local Development
 

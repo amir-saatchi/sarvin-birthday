@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { MUSIC_TRACKS } from "@/config/music";
+import { t } from "@/config/translate";
 
 interface AudioContextValue {
   isPlaying: boolean;
@@ -203,7 +204,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const trackTitle =
     !useFallbackSynth && MUSIC_TRACKS.length > 0
       ? MUSIC_TRACKS[trackIndex % MUSIC_TRACKS.length].title
-      : "Fairy Music Box";
+      : t.audio.fallbackTrackTitle;
 
   return (
     <BirthdayAudioContext.Provider

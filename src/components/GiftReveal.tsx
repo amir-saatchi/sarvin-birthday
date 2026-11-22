@@ -5,9 +5,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 import { Sparkles, Gift } from "lucide-react";
 import { useBirthdayAudio } from "./audio/AudioProvider";
-import { BIRTHDAY_CONFIG } from "@/config/birthday";
 import { PinkBunnyBadge, PurpleBunnyBadge, UnicornBadge } from "./KawaiiDecor";
 import { playSparkleSound } from "@/lib/soundEffects";
+import { t } from "@/config/translate";
 
 export function GiftReveal() {
   const { hasEntered, startExperience } = useBirthdayAudio();
@@ -59,17 +59,17 @@ export function GiftReveal() {
             animate={{ scale: 1, opacity: 1 }}
             className="kawaii-card max-w-md rounded-[2rem] p-8"
           >
-            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-4 py-1 text-xs font-bold tracking-wide text-white shadow">
+            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-4 py-1 text-xs font-bold text-white shadow">
               <Sparkles className="h-3.5 w-3.5" />
-              SPECIAL BIRTHDAY SURPRISE
+              {t.giftReveal.badge}
               <Sparkles className="h-3.5 w-3.5" />
             </div>
 
             <h1 className="font-display mb-2 text-4xl font-bold text-purple-900 sm:text-5xl">
-              Hi {BIRTHDAY_CONFIG.name}!
+              {t.giftReveal.greeting}
             </h1>
             <p className="mb-7 text-base font-semibold text-purple-700/90 sm:text-lg">
-              Your magical 5th birthday castle is ready with music &amp; 3D games!
+              {t.giftReveal.subtitle}
             </p>
 
             <motion.button
@@ -82,7 +82,7 @@ export function GiftReveal() {
               className="font-display inline-flex cursor-pointer items-center justify-center gap-3 rounded-full bg-gradient-to-r from-pink-500 via-fuchsia-500 to-purple-500 px-8 py-4 text-xl font-bold text-white shadow-xl shadow-pink-400/40 ring-4 ring-white/80"
             >
               <Gift className="h-7 w-7" />
-              Open Your Gift!
+              {t.giftReveal.openButton}
             </motion.button>
           </motion.div>
         </motion.div>
