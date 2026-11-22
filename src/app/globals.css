@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-display: var(--font-fredoka), "Comic Sans MS", cursive, sans-serif;
+  --font-sans: var(--font-nunito), system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  --bg-pink: #ffe6f4;
+  --bg-lavender: #f0e4ff;
+  --bg-sky: #e0f2fe;
+  --kuromi-plum: #3b1d5e;
+  --melody-pink: #ff6eb4;
+  --fairy-gold: #fbbf24;
+}
+
+html,
+body {
+  min-height: 100%;
+  overflow-x: hidden;
+  background: linear-gradient(
+    145deg,
+    #ffe4f3 0%,
+    #f3e5ff 38%,
+    #e2f1ff 72%,
+    #fff4d9 100%
+  );
+  background-attachment: fixed;
+  color: #3b1d5e;
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.kawaii-card {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px);
+  border: 3px solid rgba(255, 182, 224, 0.75);
+  box-shadow:
+    0 12px 30px rgba(192, 132, 252, 0.18),
+    0 4px 0 rgba(255, 154, 212, 0.45);
+}
+
+.kuromi-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(243, 232, 255, 0.92));
+  backdrop-filter: blur(14px);
+  border: 3px solid rgba(168, 85, 247, 0.45);
+  box-shadow:
+    0 12px 30px rgba(88, 28, 135, 0.14),
+    0 4px 0 rgba(168, 85, 247, 0.35);
+}
+
+.rainbow-text {
+  background: linear-gradient(90deg, #ff5fa2, #a855f7, #38bdf8, #f59e0b, #ff5fa2);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: rainbow-shift 6s linear infinite;
+}
+
+@keyframes rainbow-shift {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: 220% center;
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 4.5s ease-in-out infinite;
+}
+
+@keyframes sparkle-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.animate-sparkle {
+  animation: sparkle-pulse 2.4s ease-in-out infinite;
+}
