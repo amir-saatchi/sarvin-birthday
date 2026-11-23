@@ -241,6 +241,61 @@ export function FrozenPineTree3D({
   );
 }
 
+// Low-poly snowy pines from the winter forest pack (Draco GLB, ~43 KB, origins at trunk base)
+const WINTER_MODEL_URL = "/models/winter.glb";
+export type WinterPineVariant = "tree_chr_big" | "tree_chr_small" | "tree_big_snow";
+// Height in world units at scale 1 (the old primitive pine was ~3.6 tall)
+const WINTER_PINE_HEIGHT = 3.9;
+
+function WinterPineModel3D({
+  position,
+  variant,
+  scale = 1,
+  rotationY = 0,
+}: {
+  position: Vec3;
+  variant: WinterPineVariant;
+  scale?: number;
+  rotationY?: number;
+}) {
+  const { nodes } = useGLTF(WINTER_MODEL_URL);
+  const mesh = nodes[variant] as THREE.Mesh | undefined;
+  const fit = useMemo(() => {
+    if (!mesh) return 1;
+    mesh.geometry.computeBoundingBox();
+    const h = mesh.geometry.boundingBox!.max.y - mesh.geometry.boundingBox!.min.y;
+    return WINTER_PINE_HEIGHT / Math.max(h, 0.001);
+  }, [mesh]);
+  if (!mesh) return null;
+  return (
+    <mesh
+      position={position}
+      rotation={[0, rotationY, 0]}
+      scale={fit * scale}
+      geometry={mesh.geometry}
+      material={mesh.material}
+      castShadow
+      dispose={null}
+    />
+  );
+}
+useGLTF.preload(WINTER_MODEL_URL);
+
+/** Snowy low-poly pine model, with the pastel primitive pine shown while it loads. */
+export function WinterPine3D(props: {
+  position: Vec3;
+  variant: WinterPineVariant;
+  color?: string;
+  scale?: number;
+  rotationY?: number;
+}) {
+  return (
+    <Suspense fallback={<FrozenPineTree3D position={props.position} color={props.color} scale={props.scale} />}>
+      <WinterPineModel3D {...props} />
+    </Suspense>
+  );
+}
+
 // Iconic cheerful Olaf snowman character ("I like warm hugs!")
 function OlafPrimitive3D({
   position,
@@ -1006,11 +1061,13 @@ export function FrozenLandPlatform3D({
 
       {/* === FROZEN PINE TREES === */}
       {FROZEN_PINE_SPOTS.map((tree, idx) => (
-        <FrozenPineTree3D
+        <WinterPine3D
           key={`fpine-${idx}`}
           position={tree.pos}
+          variant={idx === 2 || idx === 6 ? "tree_big_snow" : idx % 2 === 0 ? "tree_chr_big" : "tree_chr_small"}
           color={tree.color}
           scale={tree.scale}
+          rotationY={idx * 1.7}
         />
       ))}
 

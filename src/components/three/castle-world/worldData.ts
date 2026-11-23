@@ -375,6 +375,8 @@ export const FROZEN_CRYSTAL_SPOTS: Vec3[] = [
 
 // Dinosaur Land (East Island: x ∈ [27.5, 55.5], z ∈ [-13.0, 17.0])
 export const DINO_BRONTO_POS: Vec3 = [43.2, 0, -2.8];
+// Facing direction of the long-neck; her head and tail get their own collision circles along it
+export const DINO_BRONTO_YAW = -0.75;
 export const DINO_TRIKE_POS: Vec3 = [34.5, 0, 7.6];
 export const DINO_STEGO_POS: Vec3 = [36.2, 0, -5.2];
 export const DINO_VOLCANO_POS: Vec3 = [50.0, 0, -6.5];
@@ -481,6 +483,11 @@ export const CIRCLE_OBSTACLES: CircleObstacle[] = [
   ...FROZEN_CRYSTAL_SPOTS.map(([x, , z]) => ({ x, z, r: 0.72 })),
   // Dinosaur Land: Friendly Dinosaurs
   { x: DINO_BRONTO_POS[0], z: DINO_BRONTO_POS[2], r: 1.35 },
+  ...[1.55, -1.55].map((d) => ({
+    x: DINO_BRONTO_POS[0] + Math.sin(DINO_BRONTO_YAW) * d,
+    z: DINO_BRONTO_POS[2] + Math.cos(DINO_BRONTO_YAW) * d,
+    r: 0.9,
+  })),
   { x: DINO_TRIKE_POS[0], z: DINO_TRIKE_POS[2], r: 1.05 },
   { x: DINO_STEGO_POS[0], z: DINO_STEGO_POS[2], r: 1.05 },
   // Dinosaur Land: Friendly Bubble Volcano & Dino Egg Nest

@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useMemo, useRef } from "react";
+import React, { Suspense, useMemo, useRef } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
-import { Sparkles } from "@react-three/drei";
+import { Sparkles, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { ExtrudedStar3D } from "../../MagicalDecor3D";
 import type { Vec3 } from "../types";
+import { playerWorldPos } from "../playerTracker";
 import {
   DINO_BRONTO_POS,
+  DINO_BRONTO_YAW,
   DINO_FLOWER_SPOTS,
   DINO_LAGOON_POS,
   DINO_LANTERN_SPOTS,
@@ -427,6 +429,114 @@ export function KawaiiBronto3D({
         </group>
       </group>
     </group>
+  );
+}
+
+// Sculpted long-neck "Hera" (Draco GLB, ~38 KB, 10.7k tris, flat colors), recolored mint to match the pastel world.
+// Unrigged, so she breathes, sways, leans her body a little toward the player and does a happy hop when they come close.
+const HERA_MODEL_URL = "/models/hera.glb";
+// Height incl. head crest at scale 1; she is ~1.7x as long as she is tall
+const HERA_HEIGHT = 2.6;
+const HERA_NOTICE_DIST = 7;
+const HERA_COLORS: Record<string, string> = {
+  Body: "#5eead4",
+  Mouth: "#fb7185",
+  Tongue: "#f43f5e",
+  Eye: "#1e1b4b",
+};
+
+function dampAngle(cur: number, target: number, lambda: number, dt: number) {
+  const diff = Math.atan2(Math.sin(target - cur), Math.cos(target - cur));
+  return cur + diff * (1 - Math.exp(-lambda * dt));
+}
+
+function HeraModel3D({
+  position,
+  rotation = [0, -0.65, 0],
+  scale = 1,
+}: {
+  position: Vec3;
+  rotation?: Vec3;
+  scale?: number;
+}) {
+  const { scene } = useGLTF(HERA_MODEL_URL);
+  const yawRef = useRef<THREE.Group>(null);
+  const bodyRef = useRef<THREE.Group>(null);
+  const restYaw = rotation[1];
+  const state = useRef({ yaw: restYaw, near: 0 });
+
+  const { model, fit, offset } = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.castShadow = true;
+      const recolor = (m: THREE.Material) => {
+        const mat = (m as THREE.MeshStandardMaterial).clone();
+        const c = HERA_COLORS[mat.name];
+        if (c) mat.color.set(c);
+        mat.roughness = mat.name === "Eye" ? 0.15 : 0.45;
+        mat.metalness = 0;
+        return mat;
+      };
+      mesh.material = Array.isArray(mesh.material) ? mesh.material.map(recolor) : recolor(mesh.material);
+    });
+    clone.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(clone);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    return {
+      model: clone,
+      fit: HERA_HEIGHT / Math.max(size.y, 0.001),
+      offset: [-center.x, -box.min.y, -center.z] as Vec3,
+    };
+  }, [scene]);
+
+  useFrame((s, delta) => {
+    const dt = Math.min(delta, 0.05);
+    const t = s.clock.elapsedTime;
+    const st = state.current;
+    const dx = playerWorldPos.x - position[0];
+    const dz = playerWorldPos.z - position[2];
+    const near = Math.hypot(dx, dz) < HERA_NOTICE_DIST;
+    st.near += ((near ? 1 : 0) - st.near) * (1 - Math.exp(-4 * dt));
+
+    // Lean toward the player, but only a little so her long body stays inside its collision footprint
+    const toPlayer = Math.atan2(dx, dz);
+    const lean = THREE.MathUtils.clamp(Math.atan2(Math.sin(toPlayer - restYaw), Math.cos(toPlayer - restYaw)), -0.35, 0.35);
+    st.yaw = dampAngle(st.yaw, near ? restYaw + lean : restYaw, 3, dt);
+    if (yawRef.current) yawRef.current.rotation.y = st.yaw;
+
+    if (bodyRef.current) {
+      const n = st.near;
+      const breathe = 1 + Math.sin(t * 1.8) * 0.018;
+      bodyRef.current.scale.set(1, breathe, 1);
+      bodyRef.current.position.y = Math.abs(Math.sin(t * 5)) * 0.14 * n;
+      bodyRef.current.rotation.z = Math.sin(t * 1.3) * 0.03 + Math.sin(t * 5) * 0.04 * n;
+      bodyRef.current.rotation.x = Math.sin(t * 1.1) * 0.02;
+    }
+  });
+
+  return (
+    <group position={position} scale={scale}>
+      <group ref={yawRef} rotation={[0, restYaw, 0]}>
+        <group ref={bodyRef}>
+          <group scale={fit}>
+            <primitive object={model} position={offset} />
+          </group>
+        </group>
+      </group>
+    </group>
+  );
+}
+useGLTF.preload(HERA_MODEL_URL);
+
+/** Dino Land long-neck: sculpted Hera model, with the primitive Bronto shown while it loads. */
+export function HeraBronto3D(props: { position: Vec3; rotation?: Vec3; scale?: number }) {
+  return (
+    <Suspense fallback={<KawaiiBronto3D {...props} />}>
+      <HeraModel3D {...props} />
+    </Suspense>
   );
 }
 
@@ -1118,7 +1228,7 @@ export function DinoLandPlatform3D({
       ))}
 
       {/* === 3 ADORABLE GLOSSY KAWAII DINOSAURS === */}
-      <KawaiiBronto3D position={DINO_BRONTO_POS} rotation={[0, -0.75, 0]} scale={1.15} />
+      <HeraBronto3D position={DINO_BRONTO_POS} rotation={[0, DINO_BRONTO_YAW, 0]} scale={1.15} />
       <KawaiiTrike3D position={DINO_TRIKE_POS} rotation={[0, 0.85, 0]} scale={1.12} />
       <KawaiiStego3D position={DINO_STEGO_POS} rotation={[0, 0.45, 0]} scale={1.12} />
 
