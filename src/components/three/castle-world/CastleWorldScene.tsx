@@ -31,6 +31,9 @@ import {
 } from "./worldData";
 import { playerWorldPos } from "./playerTracker";
 
+// true: the camera swings round behind the unicorn as she turns. false: fixed north-facing camera.
+const CAMERA_FOLLOWS_FACING = true;
+
 export type CastleWorldSceneProps = {
   collectedStars: boolean[];
   collectedHearts: boolean[];
@@ -56,6 +59,9 @@ export function CastleWorldScene({
   const playerGroupRef = useRef<THREE.Group>(null);
   const playerPosRef = useRef(new THREE.Vector3(...PLAYER_START_POS));
   const playerYawRef = useRef(Math.PI);
+  // Yaw the chase camera looks along (starts behind the unicorn, facing the castle)
+  const camYawRef = useRef(Math.PI);
+  const camTargetRef = useRef(new THREE.Vector3());
   const targetPosRef = useRef<THREE.Vector3 | null>(null);
   const jumpVelRef = useRef(0);
   const keysRef = useRef<Record<string, boolean>>({});
@@ -149,8 +155,16 @@ export function CastleWorldScene({
       targetPosRef.current = null;
       blockedTimerRef.current = 0;
       const len = Math.hypot(kx, kz);
-      const vx = (kx / len) * speed * dt;
-      const vz = (kz / len) * speed * dt;
+      // Keys are camera-relative: Up = away from the camera, Left/Right = screen left/right
+      const cy = camYawRef.current;
+      const fwdX = Math.sin(cy);
+      const fwdZ = Math.cos(cy);
+      const rightX = -Math.cos(cy);
+      const rightZ = Math.sin(cy);
+      const ix = kx / len;
+      const iz = -kz / len;
+      const vx = (fwdX * iz + rightX * ix) * speed * dt;
+      const vz = (fwdZ * iz + rightZ * ix) * speed * dt;
       const clamped = clampToWalkableZones(pos.x + vx, pos.z + vz);
       pos.x = clamped.x;
       pos.z = clamped.z;
@@ -348,16 +362,24 @@ export function CastleWorldScene({
       activeGreetingZoneRef.current = null;
     }
 
-    // Smooth 3rd-person elevated follow camera — tracks full X across Frozen Land, Green Land & future East worlds!
+    // Smooth 3rd-person chase camera: sits behind the unicorn and slowly swings round to follow its facing.
+    // It only follows while she's moving and not heading back toward the camera (|turn| < ~110°), so walking
+    // toward the screen doesn't whip the camera 180° around.
+    if (CAMERA_FOLLOWS_FACING && moved) {
+      const turn = Math.atan2(
+        Math.sin(playerYawRef.current - camYawRef.current),
+        Math.cos(playerYawRef.current - camYawRef.current)
+      );
+      if (Math.abs(turn) < 1.9) camYawRef.current += turn * (1 - Math.exp(-2.2 * dt));
+    }
+    const camYaw = camYawRef.current;
+    const fx = Math.sin(camYaw);
+    const fz = Math.cos(camYaw);
     const camOffsetY = isNarrow ? 4.8 : 4.2;
-    const camOffsetZ = isNarrow ? 6.8 : 5.8;
-    const desiredCamPos = new THREE.Vector3(
-      pos.x,
-      camOffsetY + pos.y * 0.9,
-      pos.z + camOffsetZ
-    );
-    camera.position.lerp(desiredCamPos, Math.min(1, dt * 4.5));
-    camera.lookAt(pos.x, 0.8 + pos.y * 0.9, pos.z - 1.8);
+    const camBack = isNarrow ? 6.8 : 5.8;
+    camTargetRef.current.set(pos.x - fx * camBack, camOffsetY + pos.y * 0.9, pos.z - fz * camBack);
+    camera.position.lerp(camTargetRef.current, Math.min(1, dt * 4.5));
+    camera.lookAt(pos.x + fx * 1.8, 0.8 + pos.y * 0.9, pos.z + fz * 1.8);
   });
 
   return (
