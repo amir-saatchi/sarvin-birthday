@@ -185,7 +185,7 @@ export const GIFT_SPOTS: GiftSpot[] = [
 export const STAR_SPOTS: Vec3[] = [
   [0, 3.7, -49.2],      // 1. Upper Royal Castle Terrace Throne Star (y = 2.6 + 1.1)
   [-12.8, 1.1, 1.5],    // 2. Melody's Enchanted Flower Garden
-  [12.8, 1.1, 1.5],     // 3. Kuromi's Magic Crystal & Gift Plaza
+  [9.5, 1.1, 0.5],      // 3. Kuromi's Magic Crystal & Gift Plaza (west edge, open ground; 12.8,1.5 was boxed in)
   [-11.5, 1.1, 11.8],   // 4. Giant Lollipop & Candy Forest
   [11.8, 1.1, 11.5],    // 5. Shimmering Fairy Pond
   [-8.5, 1.1, -7.8],    // 6. Northwest Castle Lookout

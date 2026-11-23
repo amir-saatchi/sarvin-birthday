@@ -121,7 +121,7 @@ export function CastleWorldGame3D() {
 
       {/* 3D Open World Exploration Canvas */}
       <div className="game-stage-canvas relative h-[60dvh] min-h-[360px] max-h-[580px] w-full touch-none overflow-hidden rounded-[1.75rem] border-4 border-white/90 bg-gradient-to-b from-purple-500/85 via-fuchsia-300/80 to-sky-200/90 shadow-2xl shadow-purple-300/40 sm:h-[540px] sm:rounded-[2rem]">
-        <Canvas camera={{ position: [0, 8.2, 22.0], fov: 46 }} dpr={[1, 2]}>
+        <Canvas camera={{ position: [0, 8.2, 22.0], fov: 46 }} dpr={[1, 1.5]}>
           <CastleWorldScene
             key={round}
             collectedStars={collectedStars}

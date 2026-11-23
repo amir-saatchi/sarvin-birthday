@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Float, Sparkles } from "@react-three/drei";
 import * as THREE from "three";
@@ -52,8 +52,10 @@ export function CastleWorldScene({
   onCollectHeart,
   onTriggerMessage,
 }: CastleWorldSceneProps) {
-  const { viewport, camera } = useThree();
-  const isNarrow = viewport.width < 6.0;
+  const camera = useThree((s) => s.camera);
+  // CSS pixels of the canvas (not world units), so phones actually get the wider camera framing
+  const canvasWidth = useThree((s) => s.size.width);
+  const isNarrow = canvasWidth < 640;
 
   const playerGroupRef = useRef<THREE.Group>(null);
   const playerPosRef = useRef(new THREE.Vector3(...PLAYER_START_POS));
@@ -70,30 +72,44 @@ export function CastleWorldScene({
   const blockedTimerRef = useRef(0);
 
   useEffect(() => {
+    const keys = keysRef.current;
+    const isTypingTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      return (
+        target.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName)
+      );
+    };
+    // Match physical keys (e.code) so WASD also works on the Persian keyboard layout
     const down = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        e.preventDefault();
-        keysRef.current["space"] = true;
-        return;
-      }
-      keysRef.current[e.key.toLowerCase()] = true;
+      if (isTypingTarget(e.target)) return;
+      if (e.code === "Space" || e.code.startsWith("Arrow")) e.preventDefault();
+      keys[e.code] = true;
     };
     const up = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        keysRef.current["space"] = false;
-        return;
-      }
-      keysRef.current[e.key.toLowerCase()] = false;
+      // Always release, even if focus moved to a button meanwhile, so keys never stick
+      keys[e.code] = false;
+    };
+    const releaseAll = () => {
+      for (const k of Object.keys(keys)) keys[k] = false;
+    };
+    const onVisibility = () => {
+      if (document.hidden) releaseAll();
     };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
+    window.addEventListener("blur", releaseAll);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", releaseAll);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 
-  const handleGroundClick = (e: ThreeEvent<PointerEvent>) => {
+  // Stable identity (refs and module imports only) so the memoized terrain isn't redrawn on every pickup
+  const handleGroundClick = useCallback((e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     // A tap on the fountain/tree/tower lands inside its collision circle: move the target to the
     // obstacle's edge so the unicorn can actually arrive instead of circling it forever.
@@ -103,7 +119,7 @@ export function CastleWorldScene({
     targetPosRef.current = new THREE.Vector3(clamped.x, surfaceY, clamped.z);
     blockedTimerRef.current = 0;
     playPopSound(1.25);
-  };
+  }, []);
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05);
@@ -118,16 +134,17 @@ export function CastleWorldScene({
 
     let kx = 0;
     let kz = 0;
-    if (keysRef.current["arrowleft"] || keysRef.current["a"]) kx -= 1;
-    if (keysRef.current["arrowright"] || keysRef.current["d"]) kx += 1;
-    if (keysRef.current["arrowup"] || keysRef.current["w"]) kz -= 1;
-    if (keysRef.current["arrowdown"] || keysRef.current["s"]) kz += 1;
+    const keys = keysRef.current;
+    if (keys["ArrowLeft"] || keys["KeyA"]) kx -= 1;
+    if (keys["ArrowRight"] || keys["KeyD"]) kx += 1;
+    if (keys["ArrowUp"] || keys["KeyW"]) kz -= 1;
+    if (keys["ArrowDown"] || keys["KeyS"]) kz += 1;
 
     const currentFloorY = getWalkableFloorHeight(pos.x, pos.z, pos.y);
     const isGrounded = pos.y <= currentFloorY + 0.04 && jumpVelRef.current <= 0;
 
     // Optional keyboard Spacebar jump
-    if (keysRef.current["space"] && isGrounded) {
+    if (keys["Space"] && isGrounded) {
       jumpVelRef.current = 6.8;
       playPopSound(1.35);
     }
@@ -352,14 +369,6 @@ export function CastleWorldScene({
       <ambientLight intensity={1.05} />
       <hemisphereLight args={["#f5d0fe", "#86efac", 0.72]} />
       <directionalLight position={[14, 22, 14]} intensity={1.25} color="#fff7ed" />
-      <pointLight position={[0, 6, -16]} intensity={0.7} color="#f472b6" />
-      <pointLight position={[0, 4, 3.6]} intensity={0.5} color="#7dd3fc" />
-      <pointLight position={[0, 7, -33]} intensity={0.9} color="#f472b6" />
-      <pointLight position={[0, 9.5, -50]} intensity={0.95} color="#fde047" />
-      <pointLight position={[-41.5, 9.0, 2.0]} intensity={0.95} color="#bae6fd" />
-      <pointLight position={[41.5, 9.0, 2.0]} intensity={0.95} color="#fde68a" />
-      <pointLight position={[-7.5, 8.5, 42.5]} intensity={0.85} color="#f9a8d4" />
-      <pointLight position={[7.5, 8.5, 42.5]} intensity={0.85} color="#d8b4fe" />
 
       <CastleWorldTerrain onGroundClick={handleGroundClick} />
 

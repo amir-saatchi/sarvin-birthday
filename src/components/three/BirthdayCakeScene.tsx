@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Sparkles, Float, ContactShadows } from "@react-three/drei";
+import { OrbitControls, Sparkles, Float, ContactShadows, Instances, Instance } from "@react-three/drei";
 import * as THREE from "three";
 import confetti from "canvas-confetti";
 import { RotateCcw } from "lucide-react";
@@ -277,35 +277,39 @@ function CakeModel({
         <meshPhysicalMaterial color="#fff5fa" roughness={0.24} clearcoat={0.5} />
       </mesh>
 
-      {/* Bottom Melting Icing Drips */}
-      {bottomDrips.map((d, idx) => (
-        <group key={`bd-${idx}`} position={[d.x, 0.36 - d.len / 2, d.z]}>
-          <mesh>
-            <cylinderGeometry args={[0.075, 0.068, d.len, 12]} />
-            <meshPhysicalMaterial color="#fff5fa" roughness={0.24} clearcoat={0.5} />
-          </mesh>
-          <mesh position={[0, -d.len / 2, 0]}>
-            <sphereGeometry args={[0.068, 12, 12]} />
-            <meshPhysicalMaterial color="#fff5fa" roughness={0.24} clearcoat={0.5} />
-          </mesh>
-        </group>
-      ))}
+      {/* Bottom Melting Icing Drips (instanced: unit-height cylinder scaled to each drip length) */}
+      <Instances limit={bottomDrips.length} range={bottomDrips.length} frustumCulled={false}>
+        <cylinderGeometry args={[0.075, 0.068, 1, 12]} />
+        <meshPhysicalMaterial color="#fff5fa" roughness={0.24} clearcoat={0.5} />
+        {bottomDrips.map((d, idx) => (
+          <Instance key={`bd-${idx}`} position={[d.x, 0.36 - d.len / 2, d.z]} scale={[1, d.len, 1]} />
+        ))}
+      </Instances>
+      <Instances limit={bottomDrips.length} range={bottomDrips.length} frustumCulled={false}>
+        <sphereGeometry args={[0.068, 12, 12]} />
+        <meshPhysicalMaterial color="#fff5fa" roughness={0.24} clearcoat={0.5} />
+        {bottomDrips.map((d, idx) => (
+          <Instance key={`bds-${idx}`} position={[d.x, 0.36 - d.len, d.z]} />
+        ))}
+      </Instances>
 
-      {/* Colorful 3D Sprinkles */}
-      {sprinkles.map((s, idx) => (
-        <mesh key={`sp-${idx}`} position={s.pos} rotation={s.rot}>
-          <capsuleGeometry args={[0.022, 0.06, 4, 8]} />
-          <meshStandardMaterial color={s.color} roughness={0.25} />
-        </mesh>
-      ))}
+      {/* Colorful 3D Sprinkles (one shared white material, per-instance color) */}
+      <Instances limit={sprinkles.length} range={sprinkles.length} frustumCulled={false}>
+        <capsuleGeometry args={[0.022, 0.06, 4, 8]} />
+        <meshStandardMaterial color="#ffffff" roughness={0.25} />
+        {sprinkles.map((s, idx) => (
+          <Instance key={`sp-${idx}`} position={s.pos} rotation={s.rot} color={s.color} />
+        ))}
+      </Instances>
 
       {/* Pearl Piping Bottom */}
-      {pearlPositions.map((pos, idx) => (
-        <mesh key={`p1-${idx}`} position={pos}>
-          <sphereGeometry args={[0.095, 14, 14]} />
-          <meshPhysicalMaterial color="#ffffff" roughness={0.18} clearcoat={0.7} />
-        </mesh>
-      ))}
+      <Instances limit={pearlPositions.length} range={pearlPositions.length} frustumCulled={false}>
+        <sphereGeometry args={[0.095, 14, 14]} />
+        <meshPhysicalMaterial color="#ffffff" roughness={0.18} clearcoat={0.7} />
+        {pearlPositions.map((pos, idx) => (
+          <Instance key={`p1-${idx}`} position={pos} />
+        ))}
+      </Instances>
 
       {/* Cute Macarons & Strawberries sitting on the bottom ledge! */}
       <MiniMacaron3D position={[1.22, 0.54, 0.35]} color="#ff7ab6" rotation={[0.1, 0, -0.2]} />
@@ -327,26 +331,29 @@ function CakeModel({
       </mesh>
 
       {/* Top Melting Icing Drips */}
-      {topDrips.map((d, idx) => (
-        <group key={`td-${idx}`} position={[d.x, 1.04 - d.len / 2, d.z]}>
-          <mesh>
-            <cylinderGeometry args={[0.062, 0.056, d.len, 10]} />
-            <meshPhysicalMaterial color="#ffe4f3" roughness={0.24} clearcoat={0.5} />
-          </mesh>
-          <mesh position={[0, -d.len / 2, 0]}>
-            <sphereGeometry args={[0.056, 10, 10]} />
-            <meshPhysicalMaterial color="#ffe4f3" roughness={0.24} clearcoat={0.5} />
-          </mesh>
-        </group>
-      ))}
+      <Instances limit={topDrips.length} range={topDrips.length} frustumCulled={false}>
+        <cylinderGeometry args={[0.062, 0.056, 1, 10]} />
+        <meshPhysicalMaterial color="#ffe4f3" roughness={0.24} clearcoat={0.5} />
+        {topDrips.map((d, idx) => (
+          <Instance key={`td-${idx}`} position={[d.x, 1.04 - d.len / 2, d.z]} scale={[1, d.len, 1]} />
+        ))}
+      </Instances>
+      <Instances limit={topDrips.length} range={topDrips.length} frustumCulled={false}>
+        <sphereGeometry args={[0.056, 10, 10]} />
+        <meshPhysicalMaterial color="#ffe4f3" roughness={0.24} clearcoat={0.5} />
+        {topDrips.map((d, idx) => (
+          <Instance key={`tds-${idx}`} position={[d.x, 1.04 - d.len, d.z]} />
+        ))}
+      </Instances>
 
       {/* Pearl Piping Top */}
-      {topPearlPositions.map((pos, idx) => (
-        <mesh key={`p2-${idx}`} position={pos}>
-          <sphereGeometry args={[0.08, 14, 14]} />
-          <meshPhysicalMaterial color="#ff85c0" roughness={0.2} clearcoat={0.7} />
-        </mesh>
-      ))}
+      <Instances limit={topPearlPositions.length} range={topPearlPositions.length} frustumCulled={false}>
+        <sphereGeometry args={[0.08, 14, 14]} />
+        <meshPhysicalMaterial color="#ff85c0" roughness={0.2} clearcoat={0.7} />
+        {topPearlPositions.map((pos, idx) => (
+          <Instance key={`p2-${idx}`} position={pos} />
+        ))}
+      </Instances>
 
       {/* Center Beveled 5-Pointed Golden Star Topper */}
       <Float speed={2.6} floatIntensity={0.22} rotationIntensity={0.25}>
@@ -397,13 +404,12 @@ function CakeStage({
       <directionalLight position={[-4, 5, 3]} intensity={0.55} color="#fbcfe8" />
       <pointLight position={[-3, 3, 2]} intensity={0.65} color="#f472b6" />
       <pointLight position={[3, 2.5, 2]} intensity={0.6} color="#c084fc" />
-      {litCount > 0 && (
-        <pointLight
-          position={[0, 1.9, 0.6]}
-          intensity={0.5 + litCount * 0.24}
-          color="#fde047"
-        />
-      )}
+      {/* Always mounted: changing the light count would force every material to recompile */}
+      <pointLight
+        position={[0, 1.9, 0.6]}
+        intensity={litCount > 0 ? 0.5 + litCount * 0.24 : 0}
+        color="#fde047"
+      />
 
       {/* Enchanted Princess Castle framed cleanly inside the Rainbow Arch */}
       <FairyCastle3D
@@ -560,7 +566,7 @@ export function BirthdayCakeScene() {
       <div className="relative h-[400px] w-full overflow-hidden rounded-[2rem] border-4 border-white/90 bg-gradient-to-b from-sky-200/80 via-pink-100/75 to-purple-200/80 shadow-2xl shadow-purple-300/40 sm:h-[480px]">
         <Canvas
           camera={{ position: [0, 1.8, 6.4], fov: 44 }}
-          dpr={[1, 2]}
+          dpr={[1, 1.5]}
           gl={{ antialias: true, alpha: true }}
         >
           <CakeStage

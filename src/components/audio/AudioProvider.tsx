@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { MUSIC_TRACKS } from "@/config/music";
 import { t } from "@/config/translate";
+import { installAudioUnlock } from "@/lib/soundEffects";
 
 interface AudioContextValue {
   isPlaying: boolean;
@@ -45,6 +46,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const noteIdxRef = useRef(0);
   const isPlayingRef = useRef(false);
   const isMutedRef = useRef(false);
+
+  // Unlock the shared sound-effect AudioContext on the first tap/key (needed on iOS Safari)
+  useEffect(() => {
+    installAudioUnlock();
+  }, []);
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;

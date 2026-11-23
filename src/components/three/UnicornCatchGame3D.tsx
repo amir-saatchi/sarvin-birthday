@@ -247,17 +247,30 @@ function CatcherWorld({
   const unicornGroupRef = useRef<THREE.Group>(null);
   const unicornXRef = useRef(0);
   const treatRefs = useRef<(THREE.Group | null)[]>([]);
-  const treatsDataRef = useRef<FallingTreat[]>(
+  // Positions/velocities live in a ref (updated per frame); the kind of each slot lives in React state
+  // so the rendered mesh always matches the kind that is used when the treat is caught.
+  const [initialTreats] = useState<FallingTreat[]>(() =>
     Array.from({ length: 3 }, (_, i) => spawnTreat(i + 1, 3.4 + i * 2.5))
   );
+  const treatsDataRef = useRef<FallingTreat[]>(initialTreats);
+  const [kinds, setKinds] = useState<TreatKind[]>(() => initialTreats.map((tr) => tr.kind));
+  const wasWonRef = useRef(false);
 
-  useEffect(() => {
-    if (!won) {
-      treatsDataRef.current = Array.from({ length: 3 }, (_, i) =>
-        spawnTreat(i + 1, 3.4 + i * 2.5)
-      );
+  const respawnTreat = (treat: FallingTreat, idx: number) => {
+    const respawned = spawnTreat(treat.id, 3.8);
+    treat.xNorm = respawned.xNorm;
+    treat.y = respawned.y;
+    treat.speed = respawned.speed;
+    if (treat.kind !== respawned.kind) {
+      treat.kind = respawned.kind;
+      setKinds((prev) => {
+        if (prev[idx] === respawned.kind) return prev;
+        const next = [...prev];
+        next[idx] = respawned.kind;
+        return next;
+      });
     }
-  }, [won]);
+  };
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05);
@@ -271,7 +284,17 @@ function CatcherWorld({
       unicornGroupRef.current.rotation.z = THREE.MathUtils.clamp(-vel * 0.14, -0.22, 0.22);
     }
 
-    if (won) return;
+    if (won) {
+      wasWonRef.current = true;
+      return;
+    }
+    if (wasWonRef.current) {
+      // Restart after a win: fresh treats, and their kinds go to state so the meshes match
+      wasWonRef.current = false;
+      const fresh = Array.from({ length: 3 }, (_, i) => spawnTreat(i + 1, 3.4 + i * 2.5));
+      treatsDataRef.current = fresh;
+      setKinds(fresh.map((tr) => tr.kind));
+    }
 
     const catchRadiusX = isNarrow ? 0.85 : 1.05;
     treatsDataRef.current.forEach((treat, idx) => {
@@ -283,15 +306,9 @@ function CatcherWorld({
       const dy = Math.abs(treat.y - -1.45);
       if (dx < catchRadiusX && dy < 0.95) {
         onCatch(treat.kind);
-        const respawned = spawnTreat(treat.id, 3.8);
-        treat.xNorm = respawned.xNorm;
-        treat.y = respawned.y;
-        treat.speed = respawned.speed;
+        respawnTreat(treat, idx);
       } else if (treat.y < -3.3) {
-        const respawned = spawnTreat(treat.id, 3.8);
-        treat.xNorm = respawned.xNorm;
-        treat.y = respawned.y;
-        treat.speed = respawned.speed;
+        respawnTreat(treat, idx);
       }
 
       if (mesh) {
@@ -334,16 +351,17 @@ function CatcherWorld({
 
       {/* Falling 3D treats */}
       {!won &&
-        treatsDataRef.current.map((treat, idx) => (
+        kinds.map((kind, idx) => (
           <group
-            key={treat.id}
+            key={idx}
             ref={(el) => {
               treatRefs.current[idx] = el;
             }}
-            position={[treat.xNorm * playLimitX, treat.y, 0]}
+            // Parked above the view until the first frame positions it (avoids a flash at the origin)
+            position={[0, 10, 0]}
             scale={treatScale}
           >
-            <TreatMesh3D kind={treat.kind} />
+            <TreatMesh3D kind={kind} />
           </group>
         ))}
 

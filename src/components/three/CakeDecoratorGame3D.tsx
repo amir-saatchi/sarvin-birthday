@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Sparkles, ContactShadows, Float } from "@react-three/drei";
+import { OrbitControls, Sparkles, ContactShadows, Float, Instances, Instance } from "@react-three/drei";
 import * as THREE from "three";
 import confetti from "canvas-confetti";
 import { Palette, Droplets, Sparkles as SparklesIcon, Crown, Wand2, PartyPopper } from "lucide-react";
@@ -225,18 +225,20 @@ function CustomCake3D({
           <cylinderGeometry args={[1.49, 1.49, 0.1, 40]} />
           <meshPhysicalMaterial color={dripColor} roughness={0.22} clearcoat={0.55} />
         </mesh>
-        {bottomDrips.map((d, idx) => (
-          <group key={`bd-${idx}`} position={[d.x, 0.36 - d.len / 2, d.z]}>
-            <mesh>
-              <cylinderGeometry args={[0.075, 0.068, d.len, 10]} />
-              <meshPhysicalMaterial color={dripColor} roughness={0.22} clearcoat={0.55} />
-            </mesh>
-            <mesh position={[0, -d.len / 2, 0]}>
-              <sphereGeometry args={[0.068, 10, 10]} />
-              <meshPhysicalMaterial color={dripColor} roughness={0.22} clearcoat={0.55} />
-            </mesh>
-          </group>
-        ))}
+        <Instances limit={bottomDrips.length} range={bottomDrips.length} frustumCulled={false}>
+          <cylinderGeometry args={[0.075, 0.068, 1, 10]} />
+          <meshPhysicalMaterial color={dripColor} roughness={0.22} clearcoat={0.55} />
+          {bottomDrips.map((d, idx) => (
+            <Instance key={`bd-${idx}`} position={[d.x, 0.36 - d.len / 2, d.z]} scale={[1, d.len, 1]} />
+          ))}
+        </Instances>
+        <Instances limit={bottomDrips.length} range={bottomDrips.length} frustumCulled={false}>
+          <sphereGeometry args={[0.068, 10, 10]} />
+          <meshPhysicalMaterial color={dripColor} roughness={0.22} clearcoat={0.55} />
+          {bottomDrips.map((d, idx) => (
+            <Instance key={`bds-${idx}`} position={[d.x, 0.36 - d.len, d.z]} />
+          ))}
+        </Instances>
 
         {/* Top Tier */}
         {theme.isRainbow ? (
@@ -262,18 +264,20 @@ function CustomCake3D({
           <cylinderGeometry args={[1.04, 1.04, 0.1, 40]} />
           <meshPhysicalMaterial color={dripColor} roughness={0.22} clearcoat={0.55} />
         </mesh>
-        {topDrips.map((d, idx) => (
-          <group key={`td-${idx}`} position={[d.x, 1.04 - d.len / 2, d.z]}>
-            <mesh>
-              <cylinderGeometry args={[0.062, 0.056, d.len, 10]} />
-              <meshPhysicalMaterial color={dripColor} roughness={0.22} clearcoat={0.55} />
-            </mesh>
-            <mesh position={[0, -d.len / 2, 0]}>
-              <sphereGeometry args={[0.056, 10, 10]} />
-              <meshPhysicalMaterial color={dripColor} roughness={0.22} clearcoat={0.55} />
-            </mesh>
-          </group>
-        ))}
+        <Instances limit={topDrips.length} range={topDrips.length} frustumCulled={false}>
+          <cylinderGeometry args={[0.062, 0.056, 1, 10]} />
+          <meshPhysicalMaterial color={dripColor} roughness={0.22} clearcoat={0.55} />
+          {topDrips.map((d, idx) => (
+            <Instance key={`td-${idx}`} position={[d.x, 1.04 - d.len / 2, d.z]} scale={[1, d.len, 1]} />
+          ))}
+        </Instances>
+        <Instances limit={topDrips.length} range={topDrips.length} frustumCulled={false}>
+          <sphereGeometry args={[0.056, 10, 10]} />
+          <meshPhysicalMaterial color={dripColor} roughness={0.22} clearcoat={0.55} />
+          {topDrips.map((d, idx) => (
+            <Instance key={`tds-${idx}`} position={[d.x, 1.04 - d.len, d.z]} />
+          ))}
+        </Instances>
 
         {/* Topping 1: Strawberries */}
         {toppings.strawberries &&
@@ -318,13 +322,15 @@ function CustomCake3D({
           })}
 
         {/* Topping 3: Colorful 3D Sprinkles */}
-        {toppings.sprinkles &&
-          sprinkles.map((s, idx) => (
-            <mesh key={`sp-${idx}`} position={s.pos} rotation={s.rot}>
-              <capsuleGeometry args={[0.024, 0.065, 4, 8]} />
-              <meshStandardMaterial color={s.color} roughness={0.25} />
-            </mesh>
-          ))}
+        {toppings.sprinkles && (
+          <Instances limit={sprinkles.length} range={sprinkles.length} frustumCulled={false}>
+            <capsuleGeometry args={[0.024, 0.065, 4, 8]} />
+            <meshStandardMaterial color="#ffffff" roughness={0.25} />
+            {sprinkles.map((s, idx) => (
+              <Instance key={`sp-${idx}`} position={s.pos} rotation={s.rot} color={s.color} />
+            ))}
+          </Instances>
+        )}
 
         {/* Topping 4: 3D Hearts around top rim */}
         {toppings.hearts &&
@@ -453,7 +459,7 @@ export function CakeDecoratorGame3D() {
     <div className="game-stage-root w-full">
       {/* 3D Interactive Cake Viewport */}
       <div className="game-stage-canvas relative mb-3 h-[46dvh] min-h-[290px] max-h-[460px] w-full touch-none overflow-hidden rounded-[1.75rem] border-4 border-white/90 bg-gradient-to-b from-sky-200/80 via-pink-100/80 to-purple-200/85 shadow-2xl shadow-purple-300/40 sm:mb-4 sm:h-[450px] sm:rounded-[2rem]">
-        <Canvas camera={{ position: [0, 2.0, 5.7], fov: 44 }} dpr={[1, 2]}>
+        <Canvas camera={{ position: [0, 2.0, 5.7], fov: 44 }} dpr={[1, 1.5]}>
           <CustomCake3D
             theme={currentTheme}
             dripColor={dripColor}

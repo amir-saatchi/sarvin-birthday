@@ -14,7 +14,7 @@ import {
   ExtrudedStar3D,
   ExtrudedHeart3D,
 } from "./MagicalDecor3D";
-import { playVictoryFanfare } from "@/lib/soundEffects";
+import { getAudioContext, playVictoryFanfare } from "@/lib/soundEffects";
 import { formatNumber, t } from "@/config/translate";
 
 interface PianoKeyDef {
@@ -51,17 +51,9 @@ const HAPPY_BIRTHDAY_SEQUENCE: [number, number][] = [
   [6, 340], [6, 240], [5, 520], [3, 520], [4, 520], [3, 900],
 ];
 
-let pianoCtx: AudioContext | null = null;
 function playFairyNote(freq: number) {
-  if (typeof window === "undefined") return;
-  const AudioCtx =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtx) return;
-  if (!pianoCtx) pianoCtx = new AudioCtx();
-  if (pianoCtx.state === "suspended") {
-    pianoCtx.resume().catch(() => {});
-  }
+  const pianoCtx = getAudioContext();
+  if (!pianoCtx) return;
 
   const now = pianoCtx.currentTime;
   const osc = pianoCtx.createOscillator();

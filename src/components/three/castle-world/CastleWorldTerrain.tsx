@@ -51,7 +51,7 @@ import {
   TREE_SPOTS,
 } from "./worldData";
 
-export function CastleWorldTerrain({
+function CastleWorldTerrainImpl({
   onGroundClick,
 }: {
   onGroundClick: (e: ThreeEvent<PointerEvent>) => void;
@@ -326,3 +326,6 @@ export function CastleWorldTerrain({
     </>
   );
 }
+
+// Static world geometry: only redraw if the (stable) click handler changes, not on every pickup/message
+export const CastleWorldTerrain = React.memo(CastleWorldTerrainImpl);

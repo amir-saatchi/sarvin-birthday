@@ -1,18 +1,57 @@
 // Lightweight Web Audio API sound effects (zero external files, instant playback)
 
 let sharedCtx: AudioContext | null = null;
+let unlockInstalled = false;
 
-function getAudioContext(): AudioContext | null {
+function ensureContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (!sharedCtx) {
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return null;
     sharedCtx = new AudioCtx();
   }
-  if (sharedCtx.state === "suspended") {
-    sharedCtx.resume().catch(() => {});
-  }
   return sharedCtx;
+}
+
+function resumeIfNeeded(ctx: AudioContext) {
+  // iOS Safari reports "interrupted" (e.g. after a call or tab switch) as well as "suspended"
+  const state = ctx.state as AudioContextState | "interrupted";
+  if (state === "suspended" || state === "interrupted") {
+    ctx.resume().catch(() => {});
+  }
+}
+
+/** Shared AudioContext for all sound effects (created lazily, resumed when suspended/interrupted). */
+export function getAudioContext(): AudioContext | null {
+  const ctx = ensureContext();
+  if (ctx) resumeIfNeeded(ctx);
+  return ctx;
+}
+
+/**
+ * iOS only lets an AudioContext start inside a user gesture, but some games trigger sounds from
+ * the render loop. Unlock the shared context on the first tap/key press, once, client side only.
+ */
+export function installAudioUnlock() {
+  if (typeof window === "undefined" || typeof document === "undefined" || unlockInstalled) return;
+  unlockInstalled = true;
+  const events = ["pointerdown", "touchend", "keydown"] as const;
+  const unlock = () => {
+    const ctx = ensureContext();
+    if (ctx) {
+      resumeIfNeeded(ctx);
+      try {
+        const src = ctx.createBufferSource();
+        src.buffer = ctx.createBuffer(1, 1, 22050);
+        src.connect(ctx.destination);
+        src.start(0);
+      } catch {
+        // ignore: unlock is best-effort
+      }
+    }
+    events.forEach((name) => document.removeEventListener(name, unlock));
+  };
+  events.forEach((name) => document.addEventListener(name, unlock, { passive: true }));
 }
 
 export function playPopSound(pitchMultiplier = 1) {
