@@ -1,17 +1,23 @@
 "use client";
 
-import React, { Suspense, useMemo, useRef } from "react";
+import React, { Suspense, useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
+import { useAnimations, useGLTF } from "@react-three/drei";
+import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import * as THREE from "three";
 import { CuteUnicorn3D } from "../../MagicalDecor3D";
 
-// Sculpted unicorn (Draco + WebP GLB, ~26k tris / ~310 KB), decimated from the 236k-tri source in .asset/
-const UNICORN_MODEL_URL = "/models/unicorn.glb";
-// Overall height incl. horn, in world units (old primitive unicorn was ~1.5 tall at scale 0.96)
-const UNICORN_HEIGHT = 1.8;
+// Rigged winged unicorn (Draco + WebP GLB, ~28k tris / ~550 KB) with baked clips:
+// "Walk" (loop built from the pack's 9 walk poses), "Idle" (happy face) and "Rear" (stands up, for the win)
+const PLAYER_MODEL_URL = "/models/sunny.glb";
+// Overall height incl. horn and wing tips, in world units
+const PLAYER_HEIGHT = 1.9;
 // The player group sits 0.16 above the floor; drop the hooves back onto it
 const FEET_Y = -0.16;
+// Ground speed (world units/s) at which the walk clip plays at normal speed
+const WALK_REF_SPEED = 3.2;
+// Materials whose texture alpha cuts out lashes, brows and hoof fluff (the exporter marks them opaque)
+const CUTOUT_MATERIALS = ["Eyelashes", "Eyebrows", "HoovesAlpha", "Throat"];
 
 function angleDelta(a: number, b: number) {
   return Math.atan2(Math.sin(a - b), Math.cos(a - b));
@@ -21,67 +27,72 @@ function damp(cur: number, target: number, lambda: number, dt: number) {
   return cur + (target - cur) * (1 - Math.exp(-lambda * dt));
 }
 
-const wingMain = (
-  <meshPhysicalMaterial
-    color="#fbcfe8"
-    emissive="#f472b6"
-    emissiveIntensity={0.2}
-    roughness={0.15}
-    clearcoat={0.9}
-    transparent
-    opacity={0.88}
-  />
-);
-const wingSmall = (
-  <meshPhysicalMaterial color="#e9d5ff" roughness={0.15} clearcoat={0.9} transparent opacity={0.85} />
-);
+// The baked clips don't key the wing roots, so the flap is applied on top of the rest pose each frame
+type WingBone = { bone: THREE.Bone; axis: THREE.Vector3; rest: THREE.Quaternion; sign: number };
 
-function Wing({ side, wingRef }: { side: 1 | -1; wingRef: React.RefObject<THREE.Group | null> }) {
-  return (
-    <group ref={wingRef} position={[0.16 * side, 0, 0]}>
-      <mesh position={[0.26 * side, 0.14, 0]} rotation={[0.15, 0, -0.4 * side]} scale={[1.35, 0.72, 0.18]}>
-        <sphereGeometry args={[0.26, 16, 16]} />
-        {wingMain}
-      </mesh>
-      <mesh position={[0.2 * side, -0.06, 0]} rotation={[0.1, 0, 0.2 * side]} scale={[1.0, 0.55, 0.16]}>
-        <sphereGeometry args={[0.2, 14, 14]} />
-        {wingSmall}
-      </mesh>
-    </group>
-  );
-}
-
-function UnicornModel3D({ celebrating, wings }: { celebrating: boolean; wings: boolean }) {
-  const { scene } = useGLTF(UNICORN_MODEL_URL);
+function PlayerModel3D({ celebrating }: { celebrating: boolean }) {
+  const { scene, animations } = useGLTF(PLAYER_MODEL_URL);
 
   const rootRef = useRef<THREE.Group>(null);
   const poseRef = useRef<THREE.Group>(null);
-  const leftWingRef = useRef<THREE.Group>(null);
-  const rightWingRef = useRef<THREE.Group>(null);
 
-  const { model, fit, offset } = useMemo(() => {
-    const clone = scene.clone(true);
+  const { model, fit, offset, wings } = useMemo(() => {
+    const clone = skeletonClone(scene);
+    const bones: Record<string, THREE.Bone> = {};
     clone.traverse((o) => {
-      const mesh = o as THREE.Mesh;
-      if (mesh.isMesh) {
-        mesh.castShadow = true;
-        const mat = mesh.material as THREE.MeshStandardMaterial;
-        if (mat && "roughness" in mat) {
-          mat.roughness = 0.55;
-          mat.metalness = 0;
+      if ((o as THREE.Bone).isBone) bones[o.name] = o as THREE.Bone;
+      const mesh = o as THREE.SkinnedMesh;
+      if (!mesh.isMesh) return;
+      mesh.castShadow = true;
+      mesh.frustumCulled = false;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const m of mats) {
+        const mat = m as THREE.MeshStandardMaterial;
+        if (CUTOUT_MATERIALS.some((n) => mat.name.includes(n))) {
+          mat.alphaTest = 0.5;
+          mat.transparent = false;
         }
+        mat.metalness = 0;
       }
     });
     clone.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(clone);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
+
+    // Flap axis: the model's forward (Z) axis expressed in each wing root's parent frame
+    const rootInv = clone.getWorldQuaternion(new THREE.Quaternion()).invert();
+    const wingBone = (name: string, sign: number): WingBone | null => {
+      const bone = bones[name];
+      if (!bone?.parent) return null;
+      const parentQ = bone.parent.getWorldQuaternion(new THREE.Quaternion()).premultiply(rootInv);
+      return {
+        bone,
+        axis: new THREE.Vector3(0, 0, 1).applyQuaternion(parentQ.invert()),
+        rest: bone.quaternion.clone(),
+        sign,
+      };
+    };
     return {
       model: clone,
-      fit: UNICORN_HEIGHT / Math.max(size.y, 0.001),
+      fit: PLAYER_HEIGHT / Math.max(size.y, 0.001),
       offset: [-center.x, -box.min.y, -center.z] as [number, number, number],
+      wings: [wingBone("Wing1_L", 1), wingBone("Wing1_R", -1)].filter(Boolean) as WingBone[],
     };
   }, [scene]);
+
+  const { actions } = useAnimations(animations, model);
+
+  useEffect(() => {
+    for (const name of ["Idle", "Walk", "Rear"]) {
+      const a = actions[name];
+      if (!a) continue;
+      a.reset().setEffectiveWeight(name === "Idle" ? 1 : 0).play();
+    }
+    return () => {
+      for (const a of Object.values(actions)) a?.stop();
+    };
+  }, [actions]);
 
   // Motion state, derived from how the parent player group moves each frame
   const s = useRef({
@@ -89,6 +100,7 @@ function UnicornModel3D({ celebrating, wings }: { celebrating: boolean; wings: b
     prev: new THREE.Vector3(),
     prevYaw: 0,
     move: 0, // 0 idle .. 1 full trot
+    rear: 0,
     pitch: 0,
     roll: 0,
     vy: 0,
@@ -120,40 +132,37 @@ function UnicornModel3D({ celebrating, wings }: { celebrating: boolean; wings: b
     st.prev.copy(tmpPos);
     st.prevYaw = yaw;
 
-    st.move = damp(st.move, Math.min(hSpeed / 6.8, 1), 8, dt);
-    const m = st.move;
-    // Big vertical speed = real jump/bounce (the trot hop alone stays under ~2.6 u/s)
+    st.move = damp(st.move, Math.min(hSpeed / WALK_REF_SPEED, 1), 8, dt);
+    st.rear = damp(st.rear, celebrating ? 1 : 0, 6, dt);
+    const m = st.move * (1 - st.rear);
+    // Big vertical speed = real jump/bounce
     const air = Math.abs(st.vy) > 3 ? THREE.MathUtils.clamp(st.vy / 7, -1, 1) : 0;
 
-    // Lean forward while trotting, nose up when rising, nose down when falling
-    const pitchTarget = m * 0.1 - air * 0.28 + Math.sin(t * 24) * 0.025 * m;
-    // Lean into turns, plus a little side-to-side trot rock
-    const rollTarget =
-      THREE.MathUtils.clamp(-yawRate * 0.05, -0.22, 0.22) * m + Math.sin(t * 12) * 0.05 * m;
-    st.pitch = damp(st.pitch, pitchTarget, 10, dt);
-    st.roll = damp(st.roll, rollTarget, 10, dt);
-
-    if (celebrating) {
-      pose.position.y = Math.abs(Math.sin(t * 7)) * 0.45;
-      pose.rotation.set(0, Math.sin(t * 4) * 0.45, Math.sin(t * 7) * 0.08);
-      pose.scale.set(1, 1, 1);
-    } else {
-      // Gentle idle breathing bob that fades out while trotting
-      pose.position.y = Math.sin(t * 2.4) * 0.05 * (1 - m);
-      pose.rotation.set(st.pitch, 0, st.roll + Math.sin(t * 2) * 0.03 * (1 - m));
-      const squash = 1 + Math.sin(t * 24) * 0.035 * m;
-      pose.scale.set(1 / Math.sqrt(squash), squash, 1 / Math.sqrt(squash));
+    // Blend the baked clips: idle <-> walk by ground speed, rear up when celebrating
+    const walk = actions.Walk;
+    if (walk) {
+      walk.setEffectiveWeight(m);
+      walk.setEffectiveTimeScale(THREE.MathUtils.clamp(hSpeed / WALK_REF_SPEED, 0.6, 2.2));
     }
+    actions.Idle?.setEffectiveWeight((1 - st.move) * (1 - st.rear));
+    actions.Rear?.setEffectiveWeight(st.rear);
 
-    // Wings rest and gently flutter on the ground; they only really flap in the air or when celebrating
+    // Nose up when rising, nose down when falling; lean into turns
+    st.pitch = damp(st.pitch, -air * 0.25, 10, dt);
+    st.roll = damp(st.roll, THREE.MathUtils.clamp(-yawRate * 0.04, -0.18, 0.18) * m, 10, dt);
+    pose.rotation.set(st.pitch, celebrating ? Math.sin(t * 3) * 0.25 : 0, st.roll);
+    pose.position.y = celebrating ? Math.abs(Math.sin(t * 5)) * 0.12 : Math.sin(t * 2.4) * 0.02 * (1 - m);
+
+    // Wings: soft flutter on the ground, bigger flaps in the air or when celebrating
     const a = Math.abs(air);
     const flapSpeed = celebrating ? 9 : 4 + m * 1.5 + a * 5;
-    const flapAmp = celebrating ? 0.35 : 0.22 + m * 0.04 + a * 0.15;
-    // Accumulate phase (not t * speed) so speed changes don't make the wings jitter
+    const flapAmp = celebrating ? 0.35 : 0.14 + m * 0.04 + a * 0.2;
     st.flapPhase += flapSpeed * dt;
     const flap = Math.sin(st.flapPhase) * flapAmp;
-    if (leftWingRef.current) leftWingRef.current.rotation.y = 0.35 - flap;
-    if (rightWingRef.current) rightWingRef.current.rotation.y = -0.35 + flap;
+    for (const w of wings) {
+      tmpQ.setFromAxisAngle(w.axis, flap * w.sign);
+      w.bone.quaternion.copy(w.rest).premultiply(tmpQ);
+    }
   });
 
   return (
@@ -162,30 +171,18 @@ function UnicornModel3D({ celebrating, wings }: { celebrating: boolean; wings: b
         <group scale={fit}>
           <primitive object={model} position={offset} />
         </group>
-        {wings && (
-          <group position={[0, UNICORN_HEIGHT * 0.5, -0.12]} rotation={[0.25, 0, 0]}>
-            <Wing side={1} wingRef={leftWingRef} />
-            <Wing side={-1} wingRef={rightWingRef} />
-          </group>
-        )}
       </group>
     </group>
   );
 }
 
-useGLTF.preload(UNICORN_MODEL_URL);
+useGLTF.preload(PLAYER_MODEL_URL);
 
-/** Castle World player: sculpted unicorn model, with the primitive unicorn shown while it loads. */
-export function UnicornPlayer3D({
-  celebrating = false,
-  wings = true,
-}: {
-  celebrating?: boolean;
-  wings?: boolean;
-}) {
+/** Castle World player: rigged winged-unicorn model, with the primitive unicorn shown while it loads. */
+export function UnicornPlayer3D({ celebrating = false }: { celebrating?: boolean }) {
   return (
     <Suspense fallback={<CuteUnicorn3D scale={0.96} celebrating={celebrating} />}>
-      <UnicornModel3D celebrating={celebrating} wings={wings} />
+      <PlayerModel3D celebrating={celebrating} />
     </Suspense>
   );
 }
