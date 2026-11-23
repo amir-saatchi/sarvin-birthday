@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { Suspense, useMemo, useRef } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
@@ -7,6 +7,7 @@ import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.j
 import * as THREE from "three";
 import { ExtrudedStar3D } from "../../MagicalDecor3D";
 import type { Vec3 } from "../types";
+import { playerWorldPos } from "../playerTracker";
 import {
   FROZEN_CRYSTAL_SPOTS,
   FROZEN_GAZEBO_POS,
@@ -36,7 +37,7 @@ export function IceArchway3D({
 
   return (
     <group position={position} rotation={rotation}>
-      {/* Left & Right Faceted Crystal Pillars (local x = Â±2.65 -> clear 5.3 opening) */}
+      {/* Left & Right Faceted Crystal Pillars (local x = ±2.65 -> clear 5.3 opening) */}
       {[-2.65, 2.65].map((px) => (
         <group key={`ice-pillar-${px}`} position={[px, 0, 0]}>
           {/* Silver/frost plinth base */}
@@ -120,7 +121,7 @@ export function IceArchway3D({
   );
 }
 
-// Walkable Crystal Ice Bridge spanning exact x âˆˆ [-27.5, -20.0] (center x = -23.75, z = 2.0, length 7.5, width 5.4)
+// Walkable Crystal Ice Bridge spanning exact x ∈ [-27.5, -20.0] (center x = -23.75, z = 2.0, length 7.5, width 5.4)
 // Butt-jointed with zero overlap and zero Z-fighting against Green Land (x = -20.0) and Frozen Land (x = -27.5)
 export function CrystalIceBridge3D({
   onGroundClick,
@@ -131,7 +132,7 @@ export function CrystalIceBridge3D({
 
   return (
     <group>
-      {/* Clickable icy turquoise marble bridge deck (exact x âˆˆ [-27.5, -20.0], top at y = 0) */}
+      {/* Clickable icy turquoise marble bridge deck (exact x ∈ [-27.5, -20.0], top at y = 0) */}
       <mesh position={[-23.75, -0.18, 2.0]} onPointerDown={onGroundClick} receiveShadow>
         <boxGeometry args={[7.5, 0.36, 5.4]} />
         <meshPhysicalMaterial color="#e0f7ff" roughness={0.22} clearcoat={0.65} />
@@ -413,8 +414,15 @@ function OlafPrimitive3D({
 
 const OLAF_MODEL_URL = "/models/olaf.glb";
 const OLAF_HEIGHT = 1.9;
+const OLAF_NOTICE_DIST = 7;
 
-// Real Olaf model (Draco-compressed GLB, ~28 KB) with primitive fallback while loading
+function dampAngle(cur: number, target: number, lambda: number, dt: number) {
+  const diff = Math.atan2(Math.sin(target - cur), Math.cos(target - cur));
+  return cur + diff * (1 - Math.exp(-lambda * dt));
+}
+
+// Real Olaf model (Draco-compressed GLB, ~28 KB) with primitive fallback while loading.
+// Turns to face the player when close, returns to rest yaw when they leave, waves arms.
 function OlafModel3D({
   position,
   rotation = [0, 0.45, 0],
@@ -425,9 +433,13 @@ function OlafModel3D({
   scale?: number;
 }) {
   const { scene } = useGLTF(OLAF_MODEL_URL);
+  const rootRef = useRef<THREE.Group>(null);
   const bodyRef = useRef<THREE.Group>(null);
+  const restYaw = rotation[1];
+  const yawRef = useRef(restYaw);
+  const nearRef = useRef(0);
 
-  const { model, fit, offset } = useMemo(() => {
+  const { model, fit, offset, arms } = useMemo(() => {
     const clone = skeletonClone(scene);
     clone.traverse((o) => {
       const mesh = o as THREE.SkinnedMesh;
@@ -440,32 +452,80 @@ function OlafModel3D({
     const box = new THREE.Box3().setFromObject(clone);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
+
+    // Arm bones (Blender: Bone.003 = +X arm, Bone.005 = -X arm)
+    const norm = (n: string) => n.replace(/[.\s]/g, "");
+    const found: Record<string, THREE.Bone> = {};
+    clone.traverse((o) => {
+      if ((o as THREE.Bone).isBone) found[norm(o.name)] = o as THREE.Bone;
+    });
+    const rootInv = clone.getWorldQuaternion(new THREE.Quaternion()).invert();
+    const mk = (name: string, sign: number) => {
+      const bone = found[name];
+      if (!bone || !bone.parent) return null;
+      const parentQ = bone.parent
+        .getWorldQuaternion(new THREE.Quaternion())
+        .premultiply(rootInv);
+      // model-space Z axis (front/back) expressed in the parent bone's frame
+      const axis = new THREE.Vector3(0, 0, 1).applyQuaternion(parentQ.clone().invert());
+      return { bone, axis, rest: bone.quaternion.clone(), sign };
+    };
     return {
       model: clone,
       fit: OLAF_HEIGHT / Math.max(size.y, 0.001),
       offset: [-center.x, -box.min.y, -center.z] as Vec3,
+      arms: [mk("Bone003", 1), mk("Bone005", -1)].filter(Boolean) as {
+        bone: THREE.Bone;
+        axis: THREE.Vector3;
+        rest: THREE.Quaternion;
+        sign: number;
+      }[],
     };
   }, [scene]);
 
-  useFrame((state) => {
+  const tmpQ = useMemo(() => new THREE.Quaternion(), []);
+
+  useFrame((state, delta) => {
+    const dt = Math.min(delta, 0.05);
     const t = state.clock.elapsedTime;
+    const dx = playerWorldPos.x - position[0];
+    const dz = playerWorldPos.z - position[2];
+    const near = Math.hypot(dx, dz) < OLAF_NOTICE_DIST;
+
+    const targetYaw = near ? Math.atan2(dx, dz) : restYaw;
+    yawRef.current = dampAngle(yawRef.current, targetYaw, 6, dt);
+    if (rootRef.current) rootRef.current.rotation.y = yawRef.current;
+
+    nearRef.current += ((near ? 1 : 0) - nearRef.current) * (1 - Math.exp(-5 * dt));
+    const n = nearRef.current;
+
     if (bodyRef.current) {
       bodyRef.current.position.y = Math.abs(Math.sin(t * 2.8)) * 0.08;
       bodyRef.current.rotation.z = Math.sin(t * 2.4) * 0.05;
     }
+
+    // Arms: relaxed sway at rest, big happy wave when the player is near
+    const raise = 0.25 + n * 0.9;
+    const wave = (0.15 + n * 0.35) * Math.sin(t * (3 + n * 3));
+    arms.forEach((a, i) => {
+      const angle = a.sign * (raise + (i === 0 ? wave : -wave));
+      tmpQ.setFromAxisAngle(a.axis, angle);
+      a.bone.quaternion.copy(tmpQ).multiply(a.rest);
+    });
   });
 
   return (
-    <group position={position} rotation={rotation} scale={scale}>
-      <group ref={bodyRef}>
-        <group scale={fit}>
-          <primitive object={model} position={offset} />
+    <group position={position} scale={scale}>
+      <group ref={rootRef} rotation={[0, restYaw, 0]}>
+        <group ref={bodyRef}>
+          <group scale={fit}>
+            <primitive object={model} position={offset} />
+          </group>
         </group>
       </group>
     </group>
   );
 }
-
 useGLTF.preload(OLAF_MODEL_URL);
 
 // Iconic cheerful Olaf snowman character ("I like warm hugs!")
@@ -815,7 +875,7 @@ function IcePalaceGazebo3D({ position }: { position: Vec3 }) {
   );
 }
 
-// Floating 28 Ã— 30 Snowy Frozen Land Island (x âˆˆ [-55.5, -27.5], z âˆˆ [-13.0, 17.0], centered at [-41.5, 0, 2.0])
+// Floating 28 × 30 Snowy Frozen Land Island (x ∈ [-55.5, -27.5], z ∈ [-13.0, 17.0], centered at [-41.5, 0, 2.0])
 export function FrozenLandPlatform3D({
   onGroundClick,
 }: {
@@ -850,7 +910,7 @@ export function FrozenLandPlatform3D({
 
   return (
     <group>
-      {/* === CRISP SNOWY TOP DECK (28 Ã— 30, exact x âˆˆ [-55.5, -27.5], z âˆˆ [-13.0, 17.0], top at y = 0) === */}
+      {/* === CRISP SNOWY TOP DECK (28 × 30, exact x ∈ [-55.5, -27.5], z ∈ [-13.0, 17.0], top at y = 0) === */}
       <mesh position={[-41.5, -0.25, 2.0]} onPointerDown={onGroundClick} receiveShadow>
         <boxGeometry args={[28, 0.5, 30]} />
         <meshPhysicalMaterial color="#f0f9ff" roughness={0.42} clearcoat={0.28} />
@@ -932,16 +992,16 @@ export function FrozenLandPlatform3D({
       {/* === SPARKLING ICE PALACE GAZEBO ([-49.5, 0, 2.0]) === */}
       <IcePalaceGazebo3D position={FROZEN_GAZEBO_POS} />
 
-      {/* === PERIMETER SNOWY / ICE CRYSTAL FENCES (closing all 4 corners cleanly, east bridge opening z âˆˆ [-0.8, 4.8]) === */}
-      {/* West Edge (x = -54.9, z âˆˆ [-12.4, 16.4]) */}
+      {/* === PERIMETER SNOWY / ICE CRYSTAL FENCES (closing all 4 corners cleanly, east bridge opening z ∈ [-0.8, 4.8]) === */}
+      {/* West Edge (x = -54.9, z ∈ [-12.4, 16.4]) */}
       <IceFenceRow3D position={[-54.9, 0, 2.0]} length={28.8} rotationY={Math.PI / 2} />
-      {/* North Edge (z = -12.4, x âˆˆ [-54.9, -28.1]) */}
+      {/* North Edge (z = -12.4, x ∈ [-54.9, -28.1]) */}
       <IceFenceRow3D position={[-41.5, 0, -12.4]} length={26.8} />
-      {/* South Edge (z = 16.4, x âˆˆ [-54.9, -28.1]) */}
+      {/* South Edge (z = 16.4, x ∈ [-54.9, -28.1]) */}
       <IceFenceRow3D position={[-41.5, 0, 16.4]} length={26.8} />
-      {/* East Edge North Segment (x = -28.1, z âˆˆ [-12.4, -0.8]) */}
+      {/* East Edge North Segment (x = -28.1, z ∈ [-12.4, -0.8]) */}
       <IceFenceRow3D position={[-28.1, 0, -6.6]} length={11.6} rotationY={Math.PI / 2} />
-      {/* East Edge South Segment (x = -28.1, z âˆˆ [4.8, 16.4]) */}
+      {/* East Edge South Segment (x = -28.1, z ∈ [4.8, 16.4]) */}
       <IceFenceRow3D position={[-28.1, 0, 10.6]} length={11.6} rotationY={Math.PI / 2} />
 
       {/* === FROZEN PINE TREES === */}

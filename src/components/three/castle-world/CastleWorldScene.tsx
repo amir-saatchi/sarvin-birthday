@@ -31,6 +31,7 @@ import {
   PLAYER_START_POS,
   STAR_SPOTS,
 } from "./worldData";
+import { playerWorldPos } from "./playerTracker";
 
 export type CastleWorldSceneProps = {
   collectedStars: boolean[];
@@ -102,6 +103,7 @@ export function CastleWorldScene({
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05);
     const pos = playerPosRef.current;
+    playerWorldPos.copy(pos);
     const prevX = pos.x;
     const prevZ = pos.z;
     const speed = 6.8;
