@@ -100,3 +100,18 @@ body {
 .animate-sparkle {
   animation: sparkle-pulse 2.4s ease-in-out infinite;
 }
+
+/* Expand 3D game stages smoothly when in fullscreen mode */
+[data-game-fullscreen="true"] .game-stage-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+[data-game-fullscreen="true"] .game-stage-canvas {
+  flex: 1 1 0%;
+  height: auto !important;
+  min-height: 220px !important;
+  max-height: none !important;
+}

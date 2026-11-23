@@ -31,38 +31,80 @@ interface FallingTreat {
 
 const TREAT_KINDS: TreatKind[] = ["cupcake", "star", "strawberry", "gem", "macaron"];
 
-function spawnTreat(id: number, startY = 4.0): FallingTreat {
+function spawnTreat(id: number, startY = 4.2): FallingTreat {
   return {
     id,
-    xNorm: (Math.random() - 0.5) * 1.75,
-    y: startY + Math.random() * 2.2,
-    speed: 1.45 + Math.random() * 0.65,
+    xNorm: (Math.random() - 0.5) * 1.72,
+    y: startY + Math.random() * 1.8,
+    speed: 2.55 + Math.random() * 1.0,
     kind: TREAT_KINDS[Math.floor(Math.random() * TREAT_KINDS.length)],
   };
 }
 
+const CUPCAKE_SPRINKLES: { pos: [number, number, number]; rot: [number, number, number]; color: string }[] = [
+  { pos: [0.22, 0.12, 0.14], rot: [0.4, 0.2, 0.8], color: "#fde047" },
+  { pos: [-0.21, 0.14, 0.14], rot: [0.6, 0.8, 0.2], color: "#7dd3fc" },
+  { pos: [0.06, 0.15, 0.25], rot: [0.2, 0.5, 1.1], color: "#c084fc" },
+  { pos: [-0.08, 0.11, -0.24], rot: [0.9, 0.3, 0.4], color: "#6ee7b7" },
+  { pos: [0.2, 0.13, -0.15], rot: [0.3, 1.0, 0.5], color: "#ffffff" },
+  { pos: [-0.22, 0.12, -0.1], rot: [0.7, 0.4, 0.9], color: "#fde047" },
+];
+
+const STRAWBERRY_SEEDS: [number, number, number][] = [
+  [0.16, 0.08, 0.14],
+  [-0.16, 0.08, 0.14],
+  [0, 0.06, 0.21],
+  [0.12, -0.06, 0.11],
+  [-0.12, -0.06, 0.11],
+  [0, -0.08, 0.15],
+  [0.16, 0.08, -0.14],
+  [-0.16, 0.08, -0.14],
+  [0, 0.06, -0.21],
+  [0.1, -0.07, -0.12],
+  [-0.1, -0.07, -0.12],
+];
+
 function TreatMesh3D({ kind }: { kind: TreatKind }) {
   if (kind === "cupcake") {
     return (
-      <group>
-        {/* Fluted golden wrapper */}
-        <mesh position={[0, -0.15, 0]}>
-          <cylinderGeometry args={[0.25, 0.17, 0.28, 12]} />
-          <meshPhysicalMaterial color="#fde047" roughness={0.35} clearcoat={0.3} />
+      <group scale={1.12}>
+        {/* Fluted golden cupcake liner + scalloped collar */}
+        <mesh position={[0, -0.16, 0]}>
+          <cylinderGeometry args={[0.25, 0.17, 0.28, 14]} />
+          <meshPhysicalMaterial color="#fde047" roughness={0.32} clearcoat={0.35} />
         </mesh>
-        {/* Two-layer pink frosting swirl */}
-        <mesh position={[0, 0.06, 0]} scale={[1.05, 0.85, 1.05]}>
+        <mesh position={[0, -0.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.25, 0.035, 10, 20]} />
+          <meshStandardMaterial color="#fef08a" roughness={0.35} />
+        </mesh>
+        {/* 3-tier whipped strawberry & cream frosting swirl */}
+        <mesh position={[0, 0.07, 0]} scale={[1.08, 0.72, 1.08]}>
           <sphereGeometry args={[0.26, 20, 20]} />
-          <meshPhysicalMaterial color="#ff7ab6" roughness={0.22} clearcoat={0.6} />
+          <meshPhysicalMaterial color="#ff7ab6" roughness={0.2} clearcoat={0.65} />
         </mesh>
-        <mesh position={[0, 0.22, 0]} scale={[0.9, 0.85, 0.9]}>
-          <sphereGeometry args={[0.17, 16, 16]} />
-          <meshPhysicalMaterial color="#fbcfe8" roughness={0.22} clearcoat={0.6} />
+        <mesh position={[0, 0.2, 0]} scale={[0.92, 0.75, 0.92]}>
+          <sphereGeometry args={[0.2, 18, 18]} />
+          <meshPhysicalMaterial color="#fbcfe8" roughness={0.2} clearcoat={0.65} />
         </mesh>
-        {/* Glossy cherry on top */}
-        <mesh position={[0, 0.36, 0]}>
-          <sphereGeometry args={[0.09, 14, 14]} />
-          <meshPhysicalMaterial color="#f43f5e" roughness={0.12} clearcoat={1} />
+        <mesh position={[0, 0.31, 0]}>
+          <coneGeometry args={[0.12, 0.14, 16]} />
+          <meshPhysicalMaterial color="#fff5fa" roughness={0.22} clearcoat={0.6} />
+        </mesh>
+        {/* Colorful 3D sprinkles */}
+        {CUPCAKE_SPRINKLES.map((s, i) => (
+          <mesh key={i} position={s.pos} rotation={s.rot}>
+            <capsuleGeometry args={[0.018, 0.048, 4, 8]} />
+            <meshStandardMaterial color={s.color} roughness={0.25} />
+          </mesh>
+        ))}
+        {/* Glossy red cherry + green stem */}
+        <mesh position={[0, 0.4, 0]}>
+          <sphereGeometry args={[0.085, 16, 16]} />
+          <meshPhysicalMaterial color="#f43f5e" roughness={0.1} clearcoat={1} />
+        </mesh>
+        <mesh position={[0.03, 0.5, 0]} rotation={[0, 0, -0.35]}>
+          <cylinderGeometry args={[0.012, 0.012, 0.13, 6]} />
+          <meshStandardMaterial color="#22c55e" />
         </mesh>
       </group>
     );
@@ -70,14 +112,41 @@ function TreatMesh3D({ kind }: { kind: TreatKind }) {
 
   if (kind === "strawberry") {
     return (
-      <group>
-        <mesh rotation={[Math.PI, 0, 0]}>
-          <coneGeometry args={[0.24, 0.44, 18]} />
-          <meshPhysicalMaterial color="#fb7185" roughness={0.2} clearcoat={0.7} />
+      <group scale={1.12}>
+        {/* Plump glossy berry body */}
+        <mesh position={[0, 0.08, 0]} scale={[1, 0.88, 1]}>
+          <sphereGeometry args={[0.23, 20, 20]} />
+          <meshPhysicalMaterial color="#fb4b6a" roughness={0.16} clearcoat={0.85} />
         </mesh>
-        <mesh position={[0, 0.22, 0]}>
-          <cylinderGeometry args={[0.22, 0.06, 0.1, 8]} />
-          <meshStandardMaterial color="#4ade80" roughness={0.35} />
+        <mesh position={[0, -0.07, 0]} rotation={[Math.PI, 0, 0]}>
+          <coneGeometry args={[0.215, 0.32, 20]} />
+          <meshPhysicalMaterial color="#fb4b6a" roughness={0.16} clearcoat={0.85} />
+        </mesh>
+        {/* Tiny golden strawberry seeds */}
+        {STRAWBERRY_SEEDS.map((pos, i) => (
+          <mesh key={i} position={pos}>
+            <sphereGeometry args={[0.022, 8, 8]} />
+            <meshStandardMaterial color="#fef08a" roughness={0.35} />
+          </mesh>
+        ))}
+        {/* 5-leaf green calyx crown + stem */}
+        {[0, 1, 2, 3, 4].map((i) => {
+          const a = (i / 5) * Math.PI * 2;
+          return (
+            <mesh
+              key={`leaf-${i}`}
+              position={[Math.cos(a) * 0.11, 0.25, Math.sin(a) * 0.11]}
+              rotation={[0.35 * Math.sin(a), -a, -0.35 * Math.cos(a)]}
+              scale={[1.4, 0.3, 0.7]}
+            >
+              <sphereGeometry args={[0.09, 10, 10]} />
+              <meshStandardMaterial color="#22c55e" roughness={0.4} />
+            </mesh>
+          );
+        })}
+        <mesh position={[0, 0.34, 0]}>
+          <cylinderGeometry args={[0.022, 0.028, 0.14, 8]} />
+          <meshStandardMaterial color="#16a34a" roughness={0.4} />
         </mesh>
       </group>
     );
@@ -85,28 +154,79 @@ function TreatMesh3D({ kind }: { kind: TreatKind }) {
 
   if (kind === "macaron") {
     return (
-      <group rotation={[0.25, 0, 0.18]}>
-        <mesh position={[0, 0.1, 0]} scale={[1, 0.55, 1]}>
-          <sphereGeometry args={[0.26, 18, 18]} />
-          <meshPhysicalMaterial color="#7dd3fc" roughness={0.22} clearcoat={0.6} />
+      <group rotation={[0.3, 0, 0.2]} scale={1.15}>
+        {/* Top glossy cookie shell + ruffled macaron foot */}
+        <mesh position={[0, 0.11, 0]} scale={[1, 0.52, 1]}>
+          <sphereGeometry args={[0.26, 20, 20]} />
+          <meshPhysicalMaterial color="#7dd3fc" roughness={0.18} clearcoat={0.75} />
         </mesh>
+        <mesh position={[0, 0.065, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.24, 0.032, 10, 22]} />
+          <meshStandardMaterial color="#bae6fd" roughness={0.45} />
+        </mesh>
+        {/* Creamy pink buttercream filling */}
         <mesh position={[0, 0, 0]}>
-          <cylinderGeometry args={[0.24, 0.24, 0.09, 18]} />
-          <meshStandardMaterial color="#fffaf5" roughness={0.35} />
+          <cylinderGeometry args={[0.24, 0.24, 0.1, 20]} />
+          <meshPhysicalMaterial color="#ffe4f3" roughness={0.3} clearcoat={0.3} />
         </mesh>
-        <mesh position={[0, -0.1, 0]} scale={[1, 0.55, 1]}>
-          <sphereGeometry args={[0.26, 18, 18]} />
-          <meshPhysicalMaterial color="#7dd3fc" roughness={0.22} clearcoat={0.6} />
+        {/* Bottom ruffled foot + cookie shell */}
+        <mesh position={[0, -0.065, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.24, 0.032, 10, 22]} />
+          <meshStandardMaterial color="#bae6fd" roughness={0.45} />
+        </mesh>
+        <mesh position={[0, -0.11, 0]} scale={[1, 0.52, 1]}>
+          <sphereGeometry args={[0.26, 20, 20]} />
+          <meshPhysicalMaterial color="#7dd3fc" roughness={0.18} clearcoat={0.75} />
+        </mesh>
+        {/* Cute golden sugar pearl on top */}
+        <mesh position={[0, 0.24, 0]}>
+          <sphereGeometry args={[0.045, 10, 10]} />
+          <meshStandardMaterial color="#fde047" metalness={0.5} roughness={0.2} />
         </mesh>
       </group>
     );
   }
 
   if (kind === "gem") {
-    return <ExtrudedHeart3D scale={0.75} color="#c084fc" emissive="#a855f7" emissiveIntensity={0.35} />;
+    // Sprinkled Frosted Strawberry Donut!
+    return (
+      <group rotation={[0.45, 0, 0.2]} scale={1.12}>
+        {/* Golden baked dough ring */}
+        <mesh>
+          <torusGeometry args={[0.24, 0.125, 18, 28]} />
+          <meshPhysicalMaterial color="#f59e0b" roughness={0.42} clearcoat={0.15} />
+        </mesh>
+        {/* Glossy strawberry-pink icing glaze on top */}
+        <mesh position={[0, 0, 0.035]}>
+          <torusGeometry args={[0.24, 0.105, 16, 28]} />
+          <meshPhysicalMaterial color="#ff6eb4" roughness={0.15} clearcoat={0.9} />
+        </mesh>
+        {/* Colorful sprinkles on the donut glaze */}
+        {[0, 1, 2, 3, 4, 5].map((i) => {
+          const a = (i / 6) * Math.PI * 2;
+          const colors = ["#fde047", "#7dd3fc", "#ffffff", "#c084fc", "#6ee7b7", "#fde047"];
+          return (
+            <mesh
+              key={`ds-${i}`}
+              position={[Math.cos(a) * 0.24, Math.sin(a) * 0.24, 0.13]}
+              rotation={[0.2, 0.3, a + 0.5]}
+            >
+              <capsuleGeometry args={[0.02, 0.055, 4, 8]} />
+              <meshStandardMaterial color={colors[i]} roughness={0.25} />
+            </mesh>
+          );
+        })}
+      </group>
+    );
   }
 
-  return <ExtrudedStar3D scale={0.95} color="#fde047" emissive="#f59e0b" emissiveIntensity={0.5} />;
+  // Glowing Golden Fairy Star + tiny floating inner sparkle
+  return (
+    <group scale={1.1}>
+      <ExtrudedStar3D scale={0.98} color="#fde047" emissive="#f59e0b" emissiveIntensity={0.55} />
+      <ExtrudedHeart3D position={[0, 0, 0.11]} scale={0.28} color="#ff6eb4" />
+    </group>
+  );
 }
 
 function CatcherWorld({
@@ -128,13 +248,13 @@ function CatcherWorld({
   const unicornXRef = useRef(0);
   const treatRefs = useRef<(THREE.Group | null)[]>([]);
   const treatsDataRef = useRef<FallingTreat[]>(
-    Array.from({ length: 5 }, (_, i) => spawnTreat(i + 1, 3.0 + i * 1.45))
+    Array.from({ length: 3 }, (_, i) => spawnTreat(i + 1, 3.4 + i * 2.5))
   );
 
   useEffect(() => {
     if (!won) {
-      treatsDataRef.current = Array.from({ length: 5 }, (_, i) =>
-        spawnTreat(i + 1, 3.0 + i * 1.45)
+      treatsDataRef.current = Array.from({ length: 3 }, (_, i) =>
+        spawnTreat(i + 1, 3.4 + i * 2.5)
       );
     }
   }, [won]);
@@ -297,7 +417,7 @@ export function UnicornCatchGame3D() {
   const pct = Math.min(100, Math.round((caught / TARGET_TREATS) * 100));
 
   return (
-    <div className="w-full">
+    <div className="game-stage-root w-full">
       {/* Compact mobile-friendly HUD */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-white/90 bg-white/85 px-3 py-2 shadow-md backdrop-blur sm:mb-4 sm:gap-3 sm:rounded-3xl sm:px-4 sm:py-3">
         <div className="flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1 sm:gap-2 sm:px-4 sm:py-1.5">
@@ -332,7 +452,7 @@ export function UnicornCatchGame3D() {
         ref={containerRef}
         onPointerMove={handlePointerMove}
         onPointerDown={handlePointerMove}
-        className="relative h-[58dvh] min-h-[340px] max-h-[540px] w-full touch-none overflow-hidden rounded-[1.75rem] border-4 border-white/90 bg-gradient-to-b from-indigo-200/80 via-pink-100/80 to-purple-200/85 shadow-2xl shadow-purple-300/40 sm:h-[520px] sm:rounded-[2rem]"
+        className="game-stage-canvas relative h-[58dvh] min-h-[340px] max-h-[540px] w-full touch-none overflow-hidden rounded-[1.75rem] border-4 border-white/90 bg-gradient-to-b from-indigo-200/80 via-pink-100/80 to-purple-200/85 shadow-2xl shadow-purple-300/40 sm:h-[520px] sm:rounded-[2rem]"
       >
         <Canvas camera={{ position: [0, 0.2, 7.2], fov: 48 }} dpr={[1, 2]}>
           <CatcherWorld targetNormXRef={targetNormXRef} won={won} onCatch={handleCatch} />

@@ -326,9 +326,9 @@ export function FairyPianoGame3D() {
       : null;
 
   return (
-    <div className="w-full">
+    <div className="game-stage-root w-full">
       {/* 3D Dancing Concert Stage */}
-      <div className="relative mb-3 h-[34dvh] min-h-[210px] max-h-[340px] w-full overflow-hidden rounded-[1.75rem] border-4 border-white/90 bg-gradient-to-b from-sky-200/80 via-pink-100/80 to-purple-200/85 shadow-2xl shadow-purple-300/40 sm:mb-4 sm:h-[330px] sm:rounded-[2rem]">
+      <div className="game-stage-canvas relative mb-3 h-[34dvh] min-h-[210px] max-h-[340px] w-full overflow-hidden rounded-[1.75rem] border-4 border-white/90 bg-gradient-to-b from-sky-200/80 via-pink-100/80 to-purple-200/85 shadow-2xl shadow-purple-300/40 sm:mb-4 sm:h-[330px] sm:rounded-[2rem]">
         <Canvas camera={{ position: [0, 1.3, 5.5], fov: 44 }} dpr={[1, 2]}>
           <ConcertStage3D bouncePulse={bouncePulse} celebrating={won} bursts={bursts} />
         </Canvas>

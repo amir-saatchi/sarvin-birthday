@@ -47,6 +47,8 @@ export const TRANSLATIONS = {
       unicornGame: "تک‌شاخ",
       backToCastle: "بازگشت به قلعه",
       backToGames: "بازگشت به بازی‌ها",
+      enterFullscreen: "تمام‌صفحه",
+      exitFullscreen: "خروج از تمام‌صفحه",
     },
     gamesList: {
       title: "سرزمین بازی‌های سروین",
@@ -204,6 +206,8 @@ export const TRANSLATIONS = {
       unicornGame: "3D Unicorn",
       backToCastle: "Back to Castle",
       backToGames: "Back to Games",
+      enterFullscreen: "Full Screen",
+      exitFullscreen: "Exit Full Screen",
     },
     gamesList: {
       title: "Sarvin's 3D Game Land",

@@ -450,9 +450,9 @@ export function CakeDecoratorGame3D() {
   ];
 
   return (
-    <div className="w-full">
+    <div className="game-stage-root w-full">
       {/* 3D Interactive Cake Viewport */}
-      <div className="relative mb-3 h-[46dvh] min-h-[290px] max-h-[460px] w-full touch-none overflow-hidden rounded-[1.75rem] border-4 border-white/90 bg-gradient-to-b from-sky-200/80 via-pink-100/80 to-purple-200/85 shadow-2xl shadow-purple-300/40 sm:mb-4 sm:h-[450px] sm:rounded-[2rem]">
+      <div className="game-stage-canvas relative mb-3 h-[46dvh] min-h-[290px] max-h-[460px] w-full touch-none overflow-hidden rounded-[1.75rem] border-4 border-white/90 bg-gradient-to-b from-sky-200/80 via-pink-100/80 to-purple-200/85 shadow-2xl shadow-purple-300/40 sm:mb-4 sm:h-[450px] sm:rounded-[2rem]">
         <Canvas camera={{ position: [0, 2.0, 5.7], fov: 44 }} dpr={[1, 2]}>
           <CustomCake3D
             theme={currentTheme}

@@ -11,7 +11,7 @@ export function MusicControls() {
 
   return (
     <div
-      className="fixed bottom-3 right-3 z-40 flex items-center gap-1.5 rounded-full border-2 border-pink-300/80 bg-white/90 px-2.5 py-1.5 shadow-lg backdrop-blur-md sm:bottom-4 sm:right-4 sm:gap-2 sm:px-3 sm:py-2"
+      className="fixed bottom-3 right-3 z-50 flex items-center gap-1.5 rounded-full border-2 border-pink-300/80 bg-white/90 px-2.5 py-1.5 shadow-lg backdrop-blur-md sm:bottom-4 sm:right-4 sm:gap-2 sm:px-3 sm:py-2"
       aria-label={t.audio.controlsAriaLabel}
     >
       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-purple-500 text-white shadow-sm">

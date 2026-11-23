@@ -30,7 +30,7 @@ export function GiftReveal() {
           initial={{ opacity: 1 }}
           exit={{ opacity: 0, scale: 1.06 }}
           transition={{ duration: 0.55, ease: "easeOut" }}
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-pink-200 via-purple-200 to-sky-200 p-6 text-center"
+          className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-gradient-to-br from-pink-200 via-purple-200 to-sky-200 p-6 text-center"
         >
           {/* Floating kawaii friends */}
           <div className="mb-6 flex items-center justify-center gap-4">

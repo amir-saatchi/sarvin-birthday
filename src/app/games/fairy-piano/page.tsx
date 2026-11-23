@@ -2,8 +2,8 @@
 
 import React from "react";
 import dynamic from "next/dynamic";
-import { Sparkles } from "lucide-react";
 import { PinkBunnyBadge } from "@/components/KawaiiDecor";
+import { GameFullscreenWrapper } from "@/components/GameFullscreenWrapper";
 import { t } from "@/config/translate";
 
 const FairyPianoGame3D = dynamic(
@@ -22,25 +22,14 @@ const FairyPianoGame3D = dynamic(
 
 export default function FairyPianoPage() {
   return (
-    <div className="mx-auto max-w-5xl px-3 pt-3 sm:px-6 sm:pt-5">
-      <div className="mb-3 flex items-center gap-2.5 sm:mb-4 sm:gap-3">
-        <PinkBunnyBadge className="h-10 w-10 shrink-0 sm:h-12 sm:w-12" />
-        <div>
-          <h1 className="font-display text-lg font-bold text-purple-900 sm:text-4xl">
-            {t.fairyPiano.title}
-          </h1>
-          <p className="hidden text-sm font-bold text-purple-700/85 sm:block">
-            {t.fairyPiano.subtitle}
-          </p>
-        </div>
-      </div>
-
+    <GameFullscreenWrapper
+      title={t.fairyPiano.title}
+      subtitle={t.fairyPiano.subtitle}
+      tip={t.fairyPiano.tip}
+      tipIconColor="text-pink-500"
+      badge={<PinkBunnyBadge className="h-10 w-10 sm:h-12 sm:w-12" />}
+    >
       <FairyPianoGame3D />
-
-      <div className="mt-3 flex items-center justify-center gap-2 text-center text-xs font-bold text-purple-800/75 sm:mt-4 sm:text-sm">
-        <Sparkles className="h-4 w-4 shrink-0 text-pink-500" />
-        <span>{t.fairyPiano.tip}</span>
-      </div>
-    </div>
+    </GameFullscreenWrapper>
   );
 }

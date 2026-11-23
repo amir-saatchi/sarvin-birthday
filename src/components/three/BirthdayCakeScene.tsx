@@ -422,40 +422,40 @@ function CakeStage({
         tint="#fff0f7"
       />
 
-      {/* Winged Glossy Unicorn in front-left on the ground */}
+      {/* Winged Glossy Unicorn resting on the pastel stage */}
       <CuteUnicorn3D
-        position={isNarrow ? [-1.18, -1.28, 1.15] : [-2.25, -1.22, 0.75]}
+        position={isNarrow ? [-1.18, -1.22, 1.15] : [-2.25, -1.2, 0.75]}
         rotation={[0, 0.55, 0]}
         scale={isNarrow ? 0.52 : 0.76}
         celebrating={allBlown}
       />
 
-      {/* Kawaii Pink & Purple Bunny Friends on the ground */}
+      {/* Kawaii Pink & Purple Bunny Friends resting on the stage */}
       <KawaiiBunnyFriend3D
         variant="pink"
-        position={isNarrow ? [1.18, -1.26, 1.05] : [2.15, -1.22, 0.85]}
+        position={isNarrow ? [1.18, -1.26, 1.05] : [2.15, -1.24, 0.85]}
         rotation={[0, -0.45, 0]}
         scale={isNarrow ? 0.58 : 0.82}
       />
       {!isNarrow && (
         <KawaiiBunnyFriend3D
           variant="purple"
-          position={[2.95, -1.22, -0.25]}
+          position={[2.95, -1.24, -0.25]}
           rotation={[0, -0.65, 0]}
           scale={0.78}
         />
       )}
 
-      {/* Wrapped 3D Birthday Gift Boxes on the ground */}
+      {/* Wrapped 3D Birthday Gift Boxes resting on the stage */}
       <KawaiiGiftBox3D
-        position={isNarrow ? [0.78, -1.32, 1.55] : [1.42, -1.28, 1.45]}
+        position={isNarrow ? [0.78, -1.31, 1.55] : [1.42, -1.31, 1.45]}
         rotation={[0, -0.3, 0]}
         scale={isNarrow ? 0.44 : 0.64}
         boxColor="#ff85c0"
         ribbonColor="#fde047"
       />
       <KawaiiGiftBox3D
-        position={isNarrow ? [-0.62, -1.32, 1.62] : [-1.45, -1.28, 1.5]}
+        position={isNarrow ? [-0.62, -1.31, 1.62] : [-1.45, -1.31, 1.5]}
         rotation={[0, 0.4, 0]}
         scale={isNarrow ? 0.4 : 0.58}
         boxColor="#c084fc"
@@ -476,18 +476,30 @@ function CakeStage({
         />
       </Float>
 
-      {/* Center Deluxe 2-Tier Cake lowered onto the ground so the castle shines above it */}
-      <group position={isNarrow ? [0, -0.82, 0.25] : [0, -0.78, 0.35]} scale={isNarrow ? 0.64 : 0.78}>
+      {/* Center Deluxe 2-Tier Cake resting cleanly on the pastel stage */}
+      <group position={isNarrow ? [0, -0.48, 0.25] : [0, -0.32, 0.35]} scale={isNarrow ? 0.64 : 0.78}>
         <CakeModel litCandles={litCandles} onBlowCandle={onBlowCandle} />
       </group>
 
-      {/* Soft grounded shadow plane */}
+      {/* Visible Pastel Round Stage Floor so grounded shadows always sit on a real surface */}
+      <group position={[0, -1.46, 0.45]}>
+        <mesh>
+          <cylinderGeometry args={[isNarrow ? 2.5 : 3.9, isNarrow ? 2.7 : 4.15, 0.28, 48]} />
+          <meshPhysicalMaterial color="#fff1f9" roughness={0.35} clearcoat={0.25} />
+        </mesh>
+        <mesh position={[0, 0.14, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[isNarrow ? 2.5 : 3.9, 0.045, 12, 56]} />
+          <meshStandardMaterial color="#fde68a" metalness={0.45} roughness={0.25} />
+        </mesh>
+      </group>
+
+      {/* Tight ContactShadows strictly on top of the stage (far=1.6 avoids floating sky shadows) */}
       <ContactShadows
-        position={[0, -1.45, 0.2]}
+        position={[0, -1.31, 0.45]}
         opacity={0.32}
-        scale={10}
-        blur={2.4}
-        far={3.5}
+        scale={isNarrow ? 5.2 : 8.0}
+        blur={2.0}
+        far={1.6}
         color="#7e22ce"
       />
 

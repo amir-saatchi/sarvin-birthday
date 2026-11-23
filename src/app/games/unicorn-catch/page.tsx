@@ -2,8 +2,8 @@
 
 import React from "react";
 import dynamic from "next/dynamic";
-import { Sparkles } from "lucide-react";
 import { UnicornBadge } from "@/components/KawaiiDecor";
+import { GameFullscreenWrapper } from "@/components/GameFullscreenWrapper";
 import { t } from "@/config/translate";
 
 const UnicornCatchGame3D = dynamic(
@@ -22,25 +22,14 @@ const UnicornCatchGame3D = dynamic(
 
 export default function UnicornCatchPage() {
   return (
-    <div className="mx-auto max-w-5xl px-3 pt-3 sm:px-6 sm:pt-5">
-      <div className="mb-3 flex items-center gap-2.5 sm:mb-4 sm:gap-3">
-        <UnicornBadge className="h-10 w-10 shrink-0 sm:h-12 sm:w-12" />
-        <div>
-          <h1 className="font-display text-lg font-bold text-purple-900 sm:text-4xl">
-            {t.unicornGame.title}
-          </h1>
-          <p className="hidden text-sm font-bold text-purple-700/85 sm:block">
-            {t.unicornGame.subtitle}
-          </p>
-        </div>
-      </div>
-
+    <GameFullscreenWrapper
+      title={t.unicornGame.title}
+      subtitle={t.unicornGame.subtitle}
+      tip={t.unicornGame.tip}
+      tipIconColor="text-pink-500"
+      badge={<UnicornBadge className="h-10 w-10 sm:h-12 sm:w-12" />}
+    >
       <UnicornCatchGame3D />
-
-      <div className="mt-3 flex items-center justify-center gap-2 text-center text-xs font-bold text-purple-800/75 sm:mt-4 sm:text-sm">
-        <Sparkles className="h-4 w-4 shrink-0 text-pink-500" />
-        <span>{t.unicornGame.tip}</span>
-      </div>
-    </div>
+    </GameFullscreenWrapper>
   );
 }

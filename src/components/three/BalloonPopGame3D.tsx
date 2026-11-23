@@ -356,7 +356,7 @@ export function BalloonPopGame3D() {
   const progressInLevel = (score % 10) * 10;
 
   return (
-    <div className="w-full">
+    <div className="game-stage-root w-full">
       {/* Compact mobile-friendly HUD */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-white/90 bg-white/85 px-3 py-2 shadow-md backdrop-blur sm:mb-4 sm:gap-3 sm:rounded-3xl sm:px-4 sm:py-3">
         <div className="flex items-center gap-2 sm:gap-4">
@@ -399,7 +399,7 @@ export function BalloonPopGame3D() {
       </div>
 
       {/* 3D Canvas sized to fit cleanly inside a single mobile screen */}
-      <div className="relative h-[58dvh] min-h-[340px] max-h-[540px] w-full touch-none overflow-hidden rounded-[1.75rem] border-4 border-white/90 bg-gradient-to-b from-sky-300/80 via-pink-200/75 to-purple-200/85 shadow-2xl shadow-purple-300/40 sm:h-[520px] sm:rounded-[2rem]">
+      <div className="game-stage-canvas relative h-[58dvh] min-h-[340px] max-h-[540px] w-full touch-none overflow-hidden rounded-[1.75rem] border-4 border-white/90 bg-gradient-to-b from-sky-300/80 via-pink-200/75 to-purple-200/85 shadow-2xl shadow-purple-300/40 sm:h-[520px] sm:rounded-[2rem]">
         <Canvas camera={{ position: [0, 0, 7.2], fov: 50 }} dpr={[1, 2]}>
           <BalloonWorld balloons={balloons} bursts={bursts} onPop={handlePop} />
         </Canvas>
