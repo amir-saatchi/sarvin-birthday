@@ -15,6 +15,8 @@ interface AudioContextValue {
   togglePlay: () => void;
   toggleMute: () => void;
   nextTrack: () => void;
+  /** A game playing its own music: the site music pauses and the player shows this title (null = done). */
+  setGameMusic: (title: string | null) => void;
 }
 
 const BirthdayAudioContext = createContext<AudioContextValue | null>(null);
@@ -39,6 +41,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [isMuted, setIsMuted] = useState(false);
   const [trackIndex, setTrackIndex] = useState(0);
   const [useFallbackSynth, setUseFallbackSynth] = useState(MUSIC_TRACKS.length === 0);
+  const [gameMusicTitle, setGameMusic] = useState<string | null>(null);
+  const gameMusicActive = gameMusicTitle !== null;
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const synthCtxRef = useRef<AudioContext | null>(null);
@@ -127,7 +131,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   // Manage MP3 or Synth playback when state changes
   useEffect(() => {
-    if (!isPlaying) {
+    if (!isPlaying || gameMusicActive) {
       stopSynth();
       if (audioRef.current) {
         audioRef.current.pause();
@@ -176,7 +180,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
     };
-  }, [isPlaying, trackIndex, useFallbackSynth, playSynthNote, stopSynth]);
+  }, [isPlaying, gameMusicActive, trackIndex, useFallbackSynth, playSynthNote, stopSynth]);
 
   useEffect(() => {
     return () => {
@@ -208,9 +212,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const trackTitle =
-    !useFallbackSynth && MUSIC_TRACKS.length > 0
+    gameMusicTitle ??
+    (!useFallbackSynth && MUSIC_TRACKS.length > 0
       ? MUSIC_TRACKS[trackIndex % MUSIC_TRACKS.length].title
-      : t.audio.fallbackTrackTitle;
+      : t.audio.fallbackTrackTitle);
 
   return (
     <BirthdayAudioContext.Provider
@@ -219,11 +224,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         isMuted,
         hasEntered,
         trackTitle,
-        hasMultipleTracks: !useFallbackSynth && MUSIC_TRACKS.length > 1,
+        hasMultipleTracks: !gameMusicActive && !useFallbackSynth && MUSIC_TRACKS.length > 1,
         startExperience,
         togglePlay,
         toggleMute,
         nextTrack,
+        setGameMusic,
       }}
     >
       {children}

@@ -6,6 +6,9 @@ import confetti from "canvas-confetti";
 import { Heart, RotateCcw, Star, Trophy } from "lucide-react";
 import { playPopSound, playSparkleSound, playVictoryFanfare } from "@/lib/soundEffects";
 import { t } from "@/config/translate";
+import { CastleMusic, castleZoneAt } from "@/lib/castleMusic";
+import { useBirthdayAudio } from "../audio/AudioProvider";
+import { playerWorldPos } from "./castle-world/playerTracker";
 import { CastleWorldScene } from "./castle-world/CastleWorldScene";
 import { HEART_TRAIL, STAR_SPOTS } from "./castle-world/worldData";
 
@@ -27,6 +30,38 @@ export function CastleWorldGame3D() {
   const starsFound = collectedStars.filter(Boolean).length;
   const heartsFound = collectedHearts.filter(Boolean).length;
   const won = starsFound === STAR_SPOTS.length;
+  const oneStarLeft = starsFound === STAR_SPOTS.length - 1;
+
+  // Background music: an original chiptune theme re-arranged per land, replacing the site music while
+  // the game is open. Plays unless the player paused or muted the site music.
+  const { isPlaying, isMuted, hasEntered, setGameMusic } = useBirthdayAudio();
+  const musicOn = !isMuted && (isPlaying || !hasEntered);
+  const musicRef = useRef<CastleMusic | null>(null);
+
+  useEffect(() => {
+    setGameMusic(t.castleWorld.musicTitle);
+    return () => setGameMusic(null);
+  }, [setGameMusic]);
+
+  useEffect(() => {
+    if (!musicOn) return;
+    const music = new CastleMusic();
+    music.start(castleZoneAt(playerWorldPos.x, playerWorldPos.z));
+    musicRef.current = music;
+    const zoneTimer = window.setInterval(
+      () => music.setZone(castleZoneAt(playerWorldPos.x, playerWorldPos.z)),
+      300
+    );
+    return () => {
+      window.clearInterval(zoneTimer);
+      music.stop();
+      musicRef.current = null;
+    };
+  }, [musicOn]);
+
+  useEffect(() => {
+    musicRef.current?.setUrgent(oneStarLeft);
+  }, [oneStarLeft, musicOn]);
 
   const clearToastTimer = () => {
     if (toastTimerRef.current) {
@@ -41,6 +76,7 @@ export function CastleWorldGame3D() {
   useEffect(() => {
     if (!won) return;
     playVictoryFanfare();
+    musicRef.current?.restartAfter(2.6);
     confetti({
       particleCount: 180,
       spread: 115,
@@ -143,29 +179,31 @@ export function CastleWorldGame3D() {
         )}
 
         {/* All 7 Stars Win Celebration */}
+        {/* Compact banner at the top and the button at the bottom, so the celebrating pony stays visible */}
         {won && (
-          <div className="absolute inset-x-3 top-6 z-20 flex flex-col items-center text-center sm:inset-x-4 sm:top-8">
-            <div className="kawaii-card max-w-sm rounded-[1.75rem] p-5 sm:rounded-[2rem] sm:p-6">
-              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-700">
-                <Trophy className="h-4 w-4 text-amber-500" />
-                {t.castleWorld.winBadge}
+          <>
+            <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex justify-center text-center">
+              <div className="kawaii-card max-w-sm rounded-2xl px-4 py-2.5">
+                <h2 className="font-display flex items-center justify-center gap-1.5 text-lg font-bold text-purple-900 sm:text-xl">
+                  <Trophy className="h-5 w-5 shrink-0 text-amber-500" />
+                  {t.castleWorld.winTitle}
+                </h2>
+                <p className="mt-0.5 text-[11px] leading-snug font-bold text-purple-700 sm:text-xs">
+                  {t.castleWorld.winMessage}
+                </p>
               </div>
-              <h2 className="font-display mb-2 text-2xl font-bold text-purple-900 sm:text-3xl">
-                {t.castleWorld.winTitle}
-              </h2>
-              <p className="mb-4 text-sm font-bold text-purple-700">
-                {t.castleWorld.winMessage}
-              </p>
+            </div>
+            <div className="absolute inset-x-0 bottom-4 z-20 flex justify-center">
               <button
                 type="button"
                 onClick={handleRestart}
-                className="font-display inline-flex cursor-pointer items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-6 py-2.5 text-base font-bold text-white shadow-lg transition hover:scale-105 active:scale-95"
+                className="font-display inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-white bg-gradient-to-r from-pink-500 to-purple-500 px-5 py-2 text-sm font-bold text-white shadow-lg transition hover:scale-105 active:scale-95"
               >
                 <RotateCcw className="h-4 w-4" />
                 {t.castleWorld.playAgain}
               </button>
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>

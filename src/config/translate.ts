@@ -160,6 +160,7 @@ export const TRANSLATIONS = {
       winMessage: "همه ۱۰ ستاره جادویی سرزمین قلعه، یخبندان، دایناسورها و ملودی و کورومی رو پیدا کردی و جشن بزرگ شروع شد!",
       playAgain: "دوباره بگردیم!",
       tip: "هر جا روی چمن یا مسیرها کلیک کنی تک‌شاخ راه می‌افته! روی قارچ‌های صورتی بپر!",
+      musicTitle: "آهنگ ماجراجویی قلعه",
     },
     fairyPiano: {
       title: "پیانوی رنگین‌کمانی پری‌ها",
@@ -325,6 +326,7 @@ export const TRANSLATIONS = {
       winMessage: "You found all 10 magical stars across the castle kingdom, Frozen Land, Dinosaur Land & My Melody & Kuromi Land!",
       playAgain: "Explore Again!",
       tip: "Click or tap anywhere on the grass or paths to walk! Step on pink mushrooms to bounce!",
+      musicTitle: "Castle Adventure Tune",
     },
     fairyPiano: {
       title: "Rainbow Fairy Piano",
