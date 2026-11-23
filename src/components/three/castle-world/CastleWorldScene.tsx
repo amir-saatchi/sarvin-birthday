@@ -18,7 +18,9 @@ import {
   getCrossZoneSteeringTarget,
   getSurfaceHeightAt,
   getWalkableFloorHeight,
+  pushPointOutOfCircleObstacles,
   resolvePlayerCollisions,
+  slideStepAroundCircles,
 } from "./physics";
 import {
   BOUNCE_MUSHROOMS,
@@ -93,7 +95,10 @@ export function CastleWorldScene({
 
   const handleGroundClick = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    const clamped = clampToWalkableZones(e.point.x, e.point.z);
+    // A tap on the fountain/tree/tower lands inside its collision circle: move the target to the
+    // obstacle's edge so the unicorn can actually arrive instead of circling it forever.
+    const outside = pushPointOutOfCircleObstacles(e.point.x, e.point.z);
+    const clamped = clampToWalkableZones(outside.x, outside.z);
     const surfaceY = getSurfaceHeightAt(clamped.x, clamped.z);
     targetPosRef.current = new THREE.Vector3(clamped.x, surfaceY, clamped.z);
     blockedTimerRef.current = 0;
@@ -108,6 +113,8 @@ export function CastleWorldScene({
     const prevZ = pos.z;
     const speed = 6.8;
     let moved = false;
+    // Distance the tap-to-move steering asked for this frame (frame-rate independent blocked check)
+    let expectedMove = 0;
 
     let kx = 0;
     let kz = 0;
@@ -152,8 +159,11 @@ export function CastleWorldScene({
         const dist = Math.hypot(dx, dz);
         if (dist > 0.01) {
           const step = Math.min(dist, speed * dt);
-          pos.x += (dx / dist) * step;
-          pos.z += (dz / dist) * step;
+          expectedMove = step;
+          // Slide around circular obstacles (fountain, towers, trees…) instead of pushing into them
+          const slid = slideStepAroundCircles(pos, (dx / dist) * step, (dz / dist) * step);
+          pos.x += slid.dx;
+          pos.z += slid.dz;
           const desiredYaw = Math.atan2(dx, dz);
           let diff = desiredYaw - playerYawRef.current;
           while (diff > Math.PI) diff -= Math.PI * 2;
@@ -179,9 +189,11 @@ export function CastleWorldScene({
     }
 
     // If click-to-move is blocked against a solid obstacle, stop cleanly instead of trotting in place
-    if (targetPosRef.current && moved) {
+    if (targetPosRef.current && moved && expectedMove > 0) {
       const actualMove = Math.hypot(pos.x - prevX, pos.z - prevZ);
-      if (actualMove < 0.015 && !hitTerraceWall && jumpVelRef.current <= 0) {
+      // Compare against the expected travel for this frame (speed * dt), not a fixed distance,
+      // so the check behaves the same at 30, 60 or 120 Hz.
+      if (actualMove < expectedMove * 0.2 && !hitTerraceWall && jumpVelRef.current <= 0) {
         blockedTimerRef.current += dt;
         if (blockedTimerRef.current > 0.16) {
           targetPosRef.current = null;

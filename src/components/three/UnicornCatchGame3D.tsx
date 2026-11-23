@@ -354,7 +354,9 @@ function CatcherWorld({
 
 export function UnicornCatchGame3D() {
   const [caught, setCaught] = useState(0);
-  const [won, setWon] = useState(false);
+  const won = caught >= TARGET_TREATS;
+  // Running count kept in a ref so two catches in one frame can't both pass the target
+  const caughtRef = useRef(0);
   const targetNormXRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -370,7 +372,20 @@ export function UnicornCatchGame3D() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Win celebration fires once per round, when the count reaches the target
+  useEffect(() => {
+    if (!won) return;
+    playVictoryFanfare();
+    confetti({
+      particleCount: 150,
+      spread: 100,
+      origin: { y: 0.55 },
+      colors: ["#ff6eb4", "#c084fc", "#38bdf8", "#fbbf24", "#4ade80"],
+    });
+  }, [won]);
+
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary) return;
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const normX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -378,31 +393,21 @@ export function UnicornCatchGame3D() {
   };
 
   const handleCatch = (kind: TreatKind) => {
+    if (caughtRef.current >= TARGET_TREATS) return;
+    caughtRef.current += 1;
+
     if (kind === "star" || kind === "gem") {
       playSparkleSound();
     } else {
       playPopSound(1.15);
     }
 
-    setCaught((prev) => {
-      const next = prev + 1;
-      if (next >= TARGET_TREATS) {
-        setWon(true);
-        playVictoryFanfare();
-        confetti({
-          particleCount: 150,
-          spread: 100,
-          origin: { y: 0.55 },
-          colors: ["#ff6eb4", "#c084fc", "#38bdf8", "#fbbf24", "#4ade80"],
-        });
-      }
-      return next;
-    });
+    setCaught(caughtRef.current);
   };
 
   const handleRestart = () => {
+    caughtRef.current = 0;
     setCaught(0);
-    setWon(false);
     targetNormXRef.current = 0;
   };
 
@@ -466,6 +471,7 @@ export function UnicornCatchGame3D() {
           >
             <button
               type="button"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={nudgeLeft}
               aria-label={t.unicornGame.moveLeftAria}
               className="pointer-events-auto flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-white/80 text-purple-800 shadow-lg backdrop-blur transition hover:scale-105 active:scale-95 sm:h-14 sm:w-14"
@@ -474,6 +480,7 @@ export function UnicornCatchGame3D() {
             </button>
             <button
               type="button"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={nudgeRight}
               aria-label={t.unicornGame.moveRightAria}
               className="pointer-events-auto flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-white/80 text-purple-800 shadow-lg backdrop-blur transition hover:scale-105 active:scale-95 sm:h-14 sm:w-14"

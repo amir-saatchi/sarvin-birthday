@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Sparkles, Float, ContactShadows } from "@react-three/drei";
 import * as THREE from "three";
@@ -526,28 +526,33 @@ export function BirthdayCakeScene() {
   const litCount = litCandles.filter(Boolean).length;
   const allBlown = litCount === 0;
 
-  const handleBlowCandle = (index: number) => {
-    setLitCandles((prev) => {
-      if (!prev[index]) return prev;
-      const next = [...prev];
-      next[index] = false;
-      playCandleBlowSound();
+  const litRef = useRef<boolean[]>([true, true, true, true, true]);
 
-      if (next.every((c) => !c)) {
-        playVictoryFanfare();
-        confetti({
-          particleCount: 150,
-          spread: 100,
-          origin: { y: 0.5 },
-          colors: ["#ff6eb4", "#c084fc", "#38bdf8", "#fbbf24", "#4ade80"],
-        });
-      }
-      return next;
-    });
+  const handleBlowCandle = (index: number) => {
+    // Guard with a ref and keep the updater pure: sounds must not run inside setState updaters
+    if (!litRef.current[index]) return;
+    const next = [...litRef.current];
+    next[index] = false;
+    litRef.current = next;
+    playCandleBlowSound();
+    setLitCandles(next);
   };
 
+  // Celebration fires once, when the last candle goes out
+  useEffect(() => {
+    if (!allBlown) return;
+    playVictoryFanfare();
+    confetti({
+      particleCount: 150,
+      spread: 100,
+      origin: { y: 0.5 },
+      colors: ["#ff6eb4", "#c084fc", "#38bdf8", "#fbbf24", "#4ade80"],
+    });
+  }, [allBlown]);
+
   const handleRelight = () => {
-    setLitCandles([true, true, true, true, true]);
+    litRef.current = [true, true, true, true, true];
+    setLitCandles(litRef.current);
   };
 
   return (

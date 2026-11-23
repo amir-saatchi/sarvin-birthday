@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import confetti from "canvas-confetti";
 import { Heart, RotateCcw, Star, Trophy } from "lucide-react";
@@ -16,55 +16,77 @@ export function CastleWorldGame3D() {
   const [collectedHearts, setCollectedHearts] = useState<boolean[]>(() =>
     Array(HEART_TRAIL.length).fill(false)
   );
-  const [won, setWon] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  // Bumped on restart so the scene (and the unicorn's position refs) remounts from the start spot
+  const [round, setRound] = useState(0);
   const toastTimerRef = useRef<number | null>(null);
+  // Synchronous guards so a collect fired repeatedly (every frame, StrictMode) is handled once
+  const starsSeenRef = useRef<boolean[]>(Array(STAR_SPOTS.length).fill(false));
+  const heartsSeenRef = useRef<boolean[]>(Array(HEART_TRAIL.length).fill(false));
 
   const starsFound = collectedStars.filter(Boolean).length;
   const heartsFound = collectedHearts.filter(Boolean).length;
+  const won = starsFound === STAR_SPOTS.length;
+
+  const clearToastTimer = () => {
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => clearToastTimer, []);
+
+  // Win celebration: fires once per round, when the last star is collected
+  useEffect(() => {
+    if (!won) return;
+    playVictoryFanfare();
+    confetti({
+      particleCount: 180,
+      spread: 115,
+      origin: { y: 0.5 },
+      colors: ["#ff6eb4", "#c084fc", "#38bdf8", "#fbbf24", "#4ade80"],
+    });
+  }, [won]);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
-    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    clearToastTimer();
     toastTimerRef.current = window.setTimeout(() => setToastMsg(null), 3200);
   };
 
   const handleCollectStar = (idx: number) => {
+    if (starsSeenRef.current[idx]) return;
+    starsSeenRef.current[idx] = true;
+    playSparkleSound();
     setCollectedStars((prev) => {
       if (prev[idx]) return prev;
       const next = [...prev];
       next[idx] = true;
-      playSparkleSound();
-
-      if (next.every(Boolean)) {
-        setWon(true);
-        playVictoryFanfare();
-        confetti({
-          particleCount: 180,
-          spread: 115,
-          origin: { y: 0.5 },
-          colors: ["#ff6eb4", "#c084fc", "#38bdf8", "#fbbf24", "#4ade80"],
-        });
-      }
       return next;
     });
   };
 
   const handleCollectHeart = (idx: number) => {
+    if (heartsSeenRef.current[idx]) return;
+    heartsSeenRef.current[idx] = true;
+    playPopSound(1.2);
     setCollectedHearts((prev) => {
       if (prev[idx]) return prev;
       const next = [...prev];
       next[idx] = true;
-      playPopSound(1.2);
       return next;
     });
   };
 
   const handleRestart = () => {
+    starsSeenRef.current = Array(STAR_SPOTS.length).fill(false);
+    heartsSeenRef.current = Array(HEART_TRAIL.length).fill(false);
     setCollectedStars(Array(STAR_SPOTS.length).fill(false));
     setCollectedHearts(Array(HEART_TRAIL.length).fill(false));
-    setWon(false);
     setToastMsg(null);
+    clearToastTimer();
+    setRound((r) => r + 1);
   };
 
   return (
@@ -101,6 +123,7 @@ export function CastleWorldGame3D() {
       <div className="game-stage-canvas relative h-[60dvh] min-h-[360px] max-h-[580px] w-full touch-none overflow-hidden rounded-[1.75rem] border-4 border-white/90 bg-gradient-to-b from-purple-500/85 via-fuchsia-300/80 to-sky-200/90 shadow-2xl shadow-purple-300/40 sm:h-[540px] sm:rounded-[2rem]">
         <Canvas camera={{ position: [0, 8.2, 22.0], fov: 46 }} dpr={[1, 2]}>
           <CastleWorldScene
+            key={round}
             collectedStars={collectedStars}
             collectedHearts={collectedHearts}
             won={won}

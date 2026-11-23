@@ -440,6 +440,67 @@ export function pushOutOfCircle(
   return false;
 }
 
+/** Moves a point out of every circular obstacle (to the unicorn's standing distance). */
+export function pushPointOutOfCircleObstacles(x: number, z: number): { x: number; z: number } {
+  const p = new THREE.Vector3(x, 0, z);
+  for (const obs of CIRCLE_OBSTACLES) {
+    pushOutOfCircle(p, obs.x, obs.z, obs.r + UNICORN_RADIUS);
+  }
+  return { x: p.x, z: p.z };
+}
+
+/**
+ * Adjusts a desired movement step (dx, dz) so the unicorn slides around circular
+ * obstacles instead of pushing straight into them: the inward component is removed and
+ * only the tangential one is kept. A (nearly) head-on step gets a tangential nudge so it
+ * picks a side and walks around the obstacle rather than stalling in front of it.
+ */
+export function slideStepAroundCircles(
+  pos: THREE.Vector3,
+  dx: number,
+  dz: number
+): { dx: number; dz: number } {
+  const origLen = Math.hypot(dx, dz);
+  if (origLen < 1e-6) return { dx, dz };
+
+  for (const obs of CIRCLE_OBSTACLES) {
+    const minDist = obs.r + UNICORN_RADIUS;
+    const nx0 = pos.x + dx - obs.x;
+    const nz0 = pos.z + dz - obs.z;
+    if (nx0 * nx0 + nz0 * nz0 >= minDist * minDist) continue;
+
+    const ox = pos.x - obs.x;
+    const oz = pos.z - obs.z;
+    const od = Math.hypot(ox, oz);
+    if (od < 1e-4) continue;
+    const nx = ox / od;
+    const nz = oz / od;
+
+    const inward = dx * nx + dz * nz;
+    if (inward >= 0) continue;
+
+    // Keep only the tangential component
+    let tx = dx - inward * nx;
+    let tz = dz - inward * nz;
+    const tLen = Math.hypot(tx, tz);
+    const minTangent = origLen * 0.6;
+    if (tLen < minTangent) {
+      if (tLen > 1e-4) {
+        tx = (tx / tLen) * minTangent;
+        tz = (tz / tLen) * minTangent;
+      } else {
+        // Exactly head-on: pick a side deterministically
+        tx = -nz * minTangent;
+        tz = nx * minTangent;
+      }
+    }
+    dx = tx;
+    dz = tz;
+  }
+
+  return { dx, dz };
+}
+
 export function pushOutOfBox(pos: THREE.Vector3, box: BoxObstacle, radius: number): boolean {
   const closestX = THREE.MathUtils.clamp(pos.x, box.minX, box.maxX);
   const closestZ = THREE.MathUtils.clamp(pos.z, box.minZ, box.maxZ);

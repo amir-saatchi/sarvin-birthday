@@ -13,9 +13,15 @@ const RAINBOW_COLORS = [
   "#c084fc",
 ];
 
-// Reusable 5-pointed beveled 3D star geometry
-export function useStarGeometry(outerR = 0.36, innerR = 0.16, depth = 0.1) {
-  return useMemo(() => {
+// Geometries are cached per parameter set and shared between all instances.
+// Consumers must render them with `dispose={null}` so R3F never frees a shared one.
+const starGeometryCache = new Map<string, THREE.ExtrudeGeometry>();
+const heartGeometryCache = new Map<string, THREE.ExtrudeGeometry>();
+
+function getStarGeometry(outerR: number, innerR: number, depth: number) {
+  const key = `${outerR}|${innerR}|${depth}`;
+  let geo = starGeometryCache.get(key);
+  if (!geo) {
     const shape = new THREE.Shape();
     const spikes = 5;
     for (let i = 0; i < spikes * 2; i++) {
@@ -28,7 +34,7 @@ export function useStarGeometry(outerR = 0.36, innerR = 0.16, depth = 0.1) {
     }
     shape.closePath();
 
-    const geo = new THREE.ExtrudeGeometry(shape, {
+    geo = new THREE.ExtrudeGeometry(shape, {
       depth,
       bevelEnabled: true,
       bevelSegments: 3,
@@ -37,13 +43,20 @@ export function useStarGeometry(outerR = 0.36, innerR = 0.16, depth = 0.1) {
       bevelThickness: depth * 0.45,
     });
     geo.center();
-    return geo;
-  }, [outerR, innerR, depth]);
+    starGeometryCache.set(key, geo);
+  }
+  return geo;
 }
 
-// Reusable beveled 3D heart geometry
-export function useHeartGeometry(scale = 0.032, depth = 0.12) {
-  return useMemo(() => {
+// Reusable 5-pointed beveled 3D star geometry (shared, never disposed)
+export function useStarGeometry(outerR = 0.36, innerR = 0.16, depth = 0.1) {
+  return useMemo(() => getStarGeometry(outerR, innerR, depth), [outerR, innerR, depth]);
+}
+
+function getHeartGeometry(scale: number, depth: number) {
+  const key = `${scale}|${depth}`;
+  let geo = heartGeometryCache.get(key);
+  if (!geo) {
     const shape = new THREE.Shape();
     shape.moveTo(0, 3 * scale);
     shape.bezierCurveTo(
@@ -67,7 +80,7 @@ export function useHeartGeometry(scale = 0.032, depth = 0.12) {
       0, 3 * scale
     );
 
-    const geo = new THREE.ExtrudeGeometry(shape, {
+    geo = new THREE.ExtrudeGeometry(shape, {
       depth,
       bevelEnabled: true,
       bevelSegments: 4,
@@ -76,8 +89,14 @@ export function useHeartGeometry(scale = 0.032, depth = 0.12) {
       bevelThickness: 0.05,
     });
     geo.center();
-    return geo;
-  }, [scale, depth]);
+    heartGeometryCache.set(key, geo);
+  }
+  return geo;
+}
+
+// Reusable beveled 3D heart geometry (shared, never disposed)
+export function useHeartGeometry(scale = 0.032, depth = 0.12) {
+  return useMemo(() => getHeartGeometry(scale, depth), [scale, depth]);
 }
 
 export function ExtrudedStar3D({
@@ -105,7 +124,7 @@ export function ExtrudedStar3D({
   });
 
   return (
-    <mesh ref={ref} geometry={geo} position={position} scale={scale}>
+    <mesh ref={ref} geometry={geo} dispose={null} position={position} scale={scale}>
       <meshPhysicalMaterial
         color={color}
         emissive={emissive}
@@ -133,7 +152,7 @@ export function ExtrudedHeart3D({
 }) {
   const geo = useHeartGeometry(0.032, 0.12);
   return (
-    <mesh geometry={geo} position={position} scale={scale}>
+    <mesh geometry={geo} dispose={null} position={position} scale={scale}>
       <meshPhysicalMaterial
         color={color}
         emissive={emissive}

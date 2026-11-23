@@ -290,6 +290,7 @@ function BalloonWorld({
 
 export function BalloonPopGame3D() {
   const nextIdRef = useRef(20);
+  const scoreRef = useRef(0);
   const [score, setScore] = useState(0);
   const [crowns, setCrowns] = useState(0);
   const [celebrationMsg, setCelebrationMsg] = useState<string | null>(null);
@@ -325,28 +326,32 @@ export function BalloonPopGame3D() {
       prev.map((b) => (b.id === id ? createBalloon(freshId, false) : b))
     );
 
+    // Side effects live here in the event handler (not inside a setState updater, which
+    // React may run twice); scoreRef keeps the running total for level-up detection.
     const points = isStar ? 2 : 1;
-    setScore((prevScore) => {
-      const nextScore = prevScore + points;
-      const prevLevel = Math.floor(prevScore / 10);
-      const nextLevel = Math.floor(nextScore / 10);
-      if (nextLevel > prevLevel) {
-        setCrowns(nextLevel);
-        playVictoryFanfare();
-        confetti({
-          particleCount: 110,
-          spread: 90,
-          origin: { y: 0.55 },
-          colors: ["#ff6eb4", "#c084fc", "#38bdf8", "#fbbf24", "#4ade80"],
-        });
-        setCelebrationMsg(t.balloonGame.celebration(nextLevel));
-        window.setTimeout(() => setCelebrationMsg(null), 2600);
-      }
-      return nextScore;
-    });
+    const prevScore = scoreRef.current;
+    const nextScore = prevScore + points;
+    scoreRef.current = nextScore;
+    setScore(nextScore);
+
+    const prevLevel = Math.floor(prevScore / 10);
+    const nextLevel = Math.floor(nextScore / 10);
+    if (nextLevel > prevLevel) {
+      setCrowns(nextLevel);
+      playVictoryFanfare();
+      confetti({
+        particleCount: 110,
+        spread: 90,
+        origin: { y: 0.55 },
+        colors: ["#ff6eb4", "#c084fc", "#38bdf8", "#fbbf24", "#4ade80"],
+      });
+      setCelebrationMsg(t.balloonGame.celebration(nextLevel));
+      window.setTimeout(() => setCelebrationMsg(null), 2600);
+    }
   };
 
   const handleReset = () => {
+    scoreRef.current = 0;
     setScore(0);
     setCrowns(0);
     setCelebrationMsg(null);
