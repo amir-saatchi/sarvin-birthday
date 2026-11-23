@@ -18,7 +18,7 @@ export function MusicControls() {
         <Music className={`h-4 w-4 ${isPlaying && !isMuted ? "animate-bounce" : ""}`} />
       </div>
 
-      <span className="hidden max-w-[140px] truncate text-xs font-bold text-purple-900 sm:inline">
+      <span className="music-controls-title hidden max-w-[140px] truncate text-xs font-bold text-purple-900 sm:inline">
         {trackTitle}
       </span>
 

@@ -5,7 +5,32 @@ import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { ExtrudedHeart3D, ExtrudedStar3D } from "../../MagicalDecor3D";
 import type { Vec3 } from "../types";
-import { CASTLE_RAMP, UPPER_CASTLE_Y, UPPER_CASTLE_Z } from "../worldData";
+import {
+  CASTLE_CAKE_POS,
+  CASTLE_CAROUSEL_POS,
+  CASTLE_CROWN_POS,
+  CASTLE_DECK_HALF_W,
+  CASTLE_DECK_NORTH_Z,
+  CASTLE_NORTH_WALL_Z,
+  CASTLE_RAMP,
+  CASTLE_ROSE_GARDEN_POS,
+  CASTLE_SWAN_POND_POS,
+  CASTLE_THRONE_POS,
+  CASTLE_TOPIARY_SPOTS,
+  CASTLE_TREE_SPOTS,
+  CASTLE_WALL_X,
+  UPPER_CASTLE_Y,
+  UPPER_CASTLE_Z,
+} from "../worldData";
+import {
+  BirthdayCake3D,
+  HeartRoseBed3D,
+  RoyalCarousel3D,
+  RoyalCrownPedestal3D,
+  SwanPond3D,
+  Topiary3D,
+} from "./CastleGardenAssets";
+import { PastelTree3D } from "./WorldNatureAssets";
 
 // Reusable fairytale castle tower with pastel marble shaft, glowing arched windows, conical spire & waving flag
 function CastleTower3D({
@@ -451,41 +476,60 @@ export function RoyalBridge3D({
   );
 }
 
-// Two-Level Floating Royal Castle Platform:
-// Lower Courtyard (y = 0, z ∈ [-42.5, -24.5]) + Sloped Royal Ramp + Upper Royal Terrace (y = 2.6, z ∈ [-58.5, -42.5])
+// Two-Level Floating Grand Royal Castle Platform (49 wide):
+// Lower Courtyard (y = 0, z ∈ [-42.5, -24.5]) + Sloped Royal Ramp + Upper Royal Terrace (y = 2.6, z ∈ [-72, -42.5])
 export function RoyalCastlePlatform3D({
   onGroundClick,
 }: {
   onGroundClick: (e: ThreeEvent<PointerEvent>) => void;
 }) {
+  const W = CASTLE_DECK_HALF_W * 2; // 49
+  const WX = CASTLE_WALL_X; // 23.2
+  const upperDepth = UPPER_CASTLE_Z - CASTLE_DECK_NORTH_Z; // 29.5
+  const upperMidZ = (UPPER_CASTLE_Z + CASTLE_DECK_NORTH_Z) / 2; // -57.25
+  const totalDepth = -24.5 - CASTLE_DECK_NORTH_Z; // 47.5
+  const totalMidZ = (-24.5 + CASTLE_DECK_NORTH_Z) / 2; // -48.25
+  // Balcony / cornice run from the ramp edge out to the side walls
+  const balconyLen = WX - 0.95 - 2.85;
+  const balconyMidX = 2.85 + balconyLen / 2;
+  const cakeZ = CASTLE_CAKE_POS[2];
+  const upperCarpetEndZ = CASTLE_THRONE_POS[2] + 2.55; // front of the throne dais
+  const upperCarpetLen = UPPER_CASTLE_Z - upperCarpetEndZ;
+
   const cloudPuffs: [number, number, number, number][] = [
-    [-13.5, -2.5, -26.5, 2.6],
-    [13.5, -2.5, -26.5, 2.6],
-    [-14.2, -2.6, -34.5, 2.9],
-    [14.2, -2.6, -34.5, 2.9],
-    [-14.2, -2.5, -44.0, 3.0],
-    [14.2, -2.5, -44.0, 3.0],
-    [-13.4, -2.5, -55.5, 2.9],
-    [13.4, -2.5, -55.5, 2.9],
-    [0, -3.1, -58.0, 3.4],
+    [-22.5, -2.5, -27.0, 2.6],
+    [22.5, -2.5, -27.0, 2.6],
+    [-23.2, -2.6, -36.0, 2.9],
+    [23.2, -2.6, -36.0, 2.9],
+    [-23.2, -2.5, -47.0, 3.0],
+    [23.2, -2.5, -47.0, 3.0],
+    [-23.0, -2.5, -58.5, 3.0],
+    [23.0, -2.5, -58.5, 3.0],
+    [-22.4, -2.5, -69.5, 2.9],
+    [22.4, -2.5, -69.5, 2.9],
+    [-11.0, -3.0, -72.0, 3.2],
+    [11.0, -3.0, -72.0, 3.2],
+    [0, -3.1, -72.5, 3.4],
     [-5.5, -2.9, -25.2, 2.4],
     [5.5, -2.9, -25.2, 2.4],
+    [-15.0, -2.9, -25.0, 2.4],
+    [15.0, -2.9, -25.0, 2.4],
   ];
 
   return (
     <group>
-      {/* === LOWER CASTLE COURTYARD DECK (30 × 18, z ∈ [-42.5, -24.5], y = 0) === */}
+      {/* === LOWER CASTLE COURTYARD DECK (49 × 18, z ∈ [-42.5, -24.5], y = 0) === */}
       <mesh position={[0, -0.25, -33.5]} onPointerDown={onGroundClick} receiveShadow>
-        <boxGeometry args={[30, 0.5, 18.0]} />
+        <boxGeometry args={[W, 0.5, 18.0]} />
         <meshPhysicalMaterial color="#fff5fa" roughness={0.35} clearcoat={0.22} />
       </mesh>
       {/* Lower inlaid lavender courtyard mosaic border */}
       <mesh position={[0, 0.01, -33.5]} onPointerDown={onGroundClick}>
-        <boxGeometry args={[24.5, 0.008, 14.5]} />
+        <boxGeometry args={[W - 5, 0.008, 14.5]} />
         <meshStandardMaterial color="#f5e9ff" roughness={0.45} />
       </mesh>
       <mesh position={[0, 0.015, -33.5]} onPointerDown={onGroundClick}>
-        <boxGeometry args={[22.6, 0.008, 12.6]} />
+        <boxGeometry args={[W - 7, 0.008, 12.6]} />
         <meshStandardMaterial color="#fff8fc" roughness={0.4} />
       </mesh>
 
@@ -498,73 +542,103 @@ export function RoyalCastlePlatform3D({
         <boxGeometry args={[2.95, 0.01, 12.0]} />
         <meshStandardMaterial color="#fde047" roughness={0.4} />
       </mesh>
+      {/* Lavender stone paths from the carpet out to the Rose Garden (west) and the Carousel (east) */}
+      {[-1, 1].map((side) => (
+        <mesh
+          key={`lpath-${side}`}
+          position={[side * 7.2, 0.022, -33.5]}
+          onPointerDown={onGroundClick}
+        >
+          <boxGeometry args={[10.6, 0.012, 1.7]} />
+          <meshStandardMaterial color="#e9d5ff" roughness={0.45} />
+        </mesh>
+      ))}
 
-      {/* === UPPER ROYAL CASTLE TERRACE (30 × 16, z ∈ [-58.5, -42.5], y = 2.6) === */}
+      {/* === UPPER ROYAL CASTLE TERRACE (49 × 29.5, z ∈ [-72, -42.5], y = 2.6) === */}
       {/* Top pastel marble floor slab */}
       <mesh
-        position={[0, UPPER_CASTLE_Y - 0.25, -50.5]}
+        position={[0, UPPER_CASTLE_Y - 0.25, upperMidZ]}
         onPointerDown={onGroundClick}
         receiveShadow
       >
-        <boxGeometry args={[30, 0.5, 16.0]} />
+        <boxGeometry args={[W, 0.5, upperDepth]} />
         <meshPhysicalMaterial color="#fff5fa" roughness={0.35} clearcoat={0.22} />
       </mesh>
       {/* Solid lavender marble riser cliff supporting upper terrace from y = -0.5 to y = 2.1 */}
-      <mesh position={[0, 0.8, -50.5]}>
-        <boxGeometry args={[29.8, 2.6, 15.8]} />
+      <mesh position={[0, 0.8, upperMidZ]}>
+        <boxGeometry args={[W - 0.2, 2.6, upperDepth - 0.2]} />
         <meshPhysicalMaterial color="#f3e8ff" roughness={0.42} clearcoat={0.18} />
       </mesh>
       {/* Golden cornice trim along the front upper terrace cliff face (z = -42.5) */}
-      <mesh position={[-8.85, UPPER_CASTLE_Y - 0.52, UPPER_CASTLE_Z + 0.02]}>
-        <boxGeometry args={[12.3, 0.16, 0.18]} />
-        <meshStandardMaterial color="#fde68a" metalness={0.45} roughness={0.25} />
-      </mesh>
-      <mesh position={[8.85, UPPER_CASTLE_Y - 0.52, UPPER_CASTLE_Z + 0.02]}>
-        <boxGeometry args={[12.3, 0.16, 0.18]} />
-        <meshStandardMaterial color="#fde68a" metalness={0.45} roughness={0.25} />
-      </mesh>
+      {[-1, 1].map((side) => (
+        <mesh
+          key={`cornice-${side}`}
+          position={[side * (2.7 + (CASTLE_DECK_HALF_W - 2.7) / 2), UPPER_CASTLE_Y - 0.52, UPPER_CASTLE_Z + 0.02]}
+        >
+          <boxGeometry args={[CASTLE_DECK_HALF_W - 2.7, 0.16, 0.18]} />
+          <meshStandardMaterial color="#fde68a" metalness={0.45} roughness={0.25} />
+        </mesh>
+      ))}
 
       {/* Upper inlaid courtyard mosaic border */}
-      <mesh position={[0, UPPER_CASTLE_Y + 0.01, -50.5]} onPointerDown={onGroundClick}>
-        <boxGeometry args={[24.5, 0.008, 12.5]} />
+      <mesh position={[0, UPPER_CASTLE_Y + 0.01, upperMidZ]} onPointerDown={onGroundClick}>
+        <boxGeometry args={[W - 5, 0.008, upperDepth - 3.5]} />
         <meshStandardMaterial color="#f5e9ff" roughness={0.45} />
       </mesh>
-      <mesh position={[0, UPPER_CASTLE_Y + 0.015, -50.5]} onPointerDown={onGroundClick}>
-        <boxGeometry args={[22.6, 0.008, 10.6]} />
+      <mesh position={[0, UPPER_CASTLE_Y + 0.015, upperMidZ]} onPointerDown={onGroundClick}>
+        <boxGeometry args={[W - 7, 0.008, upperDepth - 5.5]} />
         <meshStandardMaterial color="#fff8fc" roughness={0.4} />
       </mesh>
 
-      {/* Upper Royal Pink & Gold Carpet (exact z ∈ [-51.5, -42.5], butts cleanly with Ramp top!) */}
-      <mesh position={[0, UPPER_CASTLE_Y + 0.026, -47.0]} onPointerDown={onGroundClick}>
-        <boxGeometry args={[2.6, 0.014, 9.0]} />
+      {/* Upper Royal Pink & Gold Carpet from the ramp top to the throne dais */}
+      <mesh
+        position={[0, UPPER_CASTLE_Y + 0.026, UPPER_CASTLE_Z - upperCarpetLen / 2]}
+        onPointerDown={onGroundClick}
+      >
+        <boxGeometry args={[2.6, 0.014, upperCarpetLen]} />
         <meshStandardMaterial color="#ff6eb4" roughness={0.5} />
       </mesh>
-      <mesh position={[0, UPPER_CASTLE_Y + 0.02, -47.0]}>
-        <boxGeometry args={[2.95, 0.01, 9.0]} />
+      <mesh position={[0, UPPER_CASTLE_Y + 0.02, UPPER_CASTLE_Z - upperCarpetLen / 2]}>
+        <boxGeometry args={[2.95, 0.01, upperCarpetLen]} />
         <meshStandardMaterial color="#fde047" roughness={0.4} />
+      </mesh>
+      {/* Round golden cake plaza */}
+      <mesh position={[0, UPPER_CASTLE_Y + 0.03, cakeZ]} onPointerDown={onGroundClick}>
+        <cylinderGeometry args={[3.0, 3.0, 0.02, 40]} />
+        <meshStandardMaterial color="#fde68a" roughness={0.4} />
+      </mesh>
+      <mesh position={[0, UPPER_CASTLE_Y + 0.036, cakeZ]} onPointerDown={onGroundClick}>
+        <cylinderGeometry args={[2.7, 2.7, 0.02, 40]} />
+        <meshStandardMaterial color="#fbcfe8" roughness={0.45} />
       </mesh>
 
       {/* Upper Front Overlook Balcony Railings (left & right of the sloped ramp) */}
-      <BalconyRailing3D position={[-7.9, UPPER_CASTLE_Y, UPPER_CASTLE_Z - 0.18]} length={9.6} />
-      <BalconyRailing3D position={[7.9, UPPER_CASTLE_Y, UPPER_CASTLE_Z - 0.18]} length={9.6} />
+      <BalconyRailing3D
+        position={[-balconyMidX, UPPER_CASTLE_Y, UPPER_CASTLE_Z - 0.18]}
+        length={balconyLen}
+      />
+      <BalconyRailing3D
+        position={[balconyMidX, UPPER_CASTLE_Y, UPPER_CASTLE_Z - 0.18]}
+        length={balconyLen}
+      />
 
       {/* === GRAND SLOPED ROYAL RAMP (z ∈ [-42.5, -36.5], y: 0 -> 2.6) === */}
       <RoyalCastleRamp3D onGroundClick={onGroundClick} />
 
-      {/* === EXTENDED FLOATING FAIRYTALE CLIFF UNDERSIDE (z ∈ [-58.5, -24.5]) === */}
-      <mesh position={[0, -1.5, -41.5]}>
-        <boxGeometry args={[29.2, 2.0, 33.2]} />
+      {/* === EXTENDED FLOATING FAIRYTALE CLIFF UNDERSIDE (z ∈ [-72, -24.5]) === */}
+      <mesh position={[0, -1.5, totalMidZ]}>
+        <boxGeometry args={[W - 0.8, 2.0, totalDepth - 0.3]} />
         <meshStandardMaterial color="#e9d5ff" roughness={0.72} />
       </mesh>
-      <mesh position={[0, -2.95, -41.5]}>
-        <boxGeometry args={[28.0, 0.9, 32.0]} />
+      <mesh position={[0, -2.95, totalMidZ]}>
+        <boxGeometry args={[W - 2.0, 0.9, totalDepth - 1.5]} />
         <meshStandardMaterial color="#c084fc" roughness={0.78} />
       </mesh>
 
       {/* Fluffy pastel clouds tucked around the floating castle underside */}
       {cloudPuffs.map(([cx, cy, cz, cr], idx) => (
         <mesh key={`ccloud-${idx}`} position={[cx, cy, cz]} scale={[1.35, 0.62, 1.25]}>
-          <sphereGeometry args={[cr, 18, 18]} />
+          <sphereGeometry args={[cr, 16, 14]} />
           <meshStandardMaterial
             color={idx % 2 === 0 ? "#ffffff" : "#fff0f7"}
             roughness={0.6}
@@ -623,33 +697,33 @@ export function RoyalCastlePlatform3D({
       </group>
 
       {/* === PERIMETER CASTLE WALLS (Lower + Stepped Upper Level) === */}
-      {/* South flanking walls (y = 0) */}
-      <CastleWallSegment3D position={[-9.0, 0, -25.0]} length={8.6} />
-      <CastleWallSegment3D position={[9.0, 0, -25.0]} length={8.6} />
+      {/* South flanking walls (y = 0), gatehouse tower to corner tower */}
+      <CastleWallSegment3D position={[-13.65, 0, -25.0]} length={16.6} />
+      <CastleWallSegment3D position={[13.65, 0, -25.0]} length={16.6} />
       {/* Lower West & East courtyard walls (y = 0, z ∈ [-42.5, -25.0]) */}
-      <CastleWallSegment3D position={[-13.8, 0, -33.75]} length={17.5} rotationY={Math.PI / 2} />
-      <CastleWallSegment3D position={[13.8, 0, -33.75]} length={17.5} rotationY={Math.PI / 2} />
-      {/* Upper West & East terrace walls (y = 2.6, z ∈ [-57.5, -42.5]) */}
+      <CastleWallSegment3D position={[-WX, 0, -33.75]} length={17.5} rotationY={Math.PI / 2} />
+      <CastleWallSegment3D position={[WX, 0, -33.75]} length={17.5} rotationY={Math.PI / 2} />
+      {/* Upper West & East terrace walls (y = 2.6, z ∈ [-70.8, -42.5]) */}
       <CastleWallSegment3D
-        position={[-13.8, UPPER_CASTLE_Y, -50.0]}
-        length={15.0}
+        position={[-WX, UPPER_CASTLE_Y, (UPPER_CASTLE_Z + CASTLE_NORTH_WALL_Z) / 2]}
+        length={UPPER_CASTLE_Z - CASTLE_NORTH_WALL_Z}
         rotationY={Math.PI / 2}
       />
       <CastleWallSegment3D
-        position={[13.8, UPPER_CASTLE_Y, -50.0]}
-        length={15.0}
+        position={[WX, UPPER_CASTLE_Y, (UPPER_CASTLE_Z + CASTLE_NORTH_WALL_Z) / 2]}
+        length={UPPER_CASTLE_Z - CASTLE_NORTH_WALL_Z}
         rotationY={Math.PI / 2}
       />
-      {/* Upper North back wall (y = 2.6, z = -57.5) */}
+      {/* Upper North back wall (y = 2.6) */}
       <CastleWallSegment3D
-        position={[0, UPPER_CASTLE_Y, -57.5]}
-        length={27.2}
+        position={[0, UPPER_CASTLE_Y, CASTLE_NORTH_WALL_Z]}
+        length={WX * 2 - 1.0}
         height={3.2}
       />
 
       {/* === LOWER SOUTH CORNER TOWERS (y = 0) === */}
       <CastleTower3D
-        position={[-13.8, 0, -25.0]}
+        position={[-WX, 0, -25.0]}
         radius={1.45}
         height={5.0}
         roofColor="#ff6eb4"
@@ -657,7 +731,7 @@ export function RoyalCastlePlatform3D({
         flagColor="#7dd3fc"
       />
       <CastleTower3D
-        position={[13.8, 0, -25.0]}
+        position={[WX, 0, -25.0]}
         radius={1.45}
         height={5.0}
         roofColor="#c084fc"
@@ -667,7 +741,7 @@ export function RoyalCastlePlatform3D({
 
       {/* === MID-TERRACE STEP-UP TOWERS (frame the lower-to-upper wall transition at z = -42.5) === */}
       <CastleTower3D
-        position={[-13.8, 0, UPPER_CASTLE_Z]}
+        position={[-WX, 0, UPPER_CASTLE_Z]}
         radius={1.4}
         height={6.6}
         roofColor="#fde047"
@@ -675,7 +749,7 @@ export function RoyalCastlePlatform3D({
         flagColor="#ff6eb4"
       />
       <CastleTower3D
-        position={[13.8, 0, UPPER_CASTLE_Z]}
+        position={[WX, 0, UPPER_CASTLE_Z]}
         radius={1.4}
         height={6.6}
         roofColor="#7dd3fc"
@@ -683,9 +757,27 @@ export function RoyalCastlePlatform3D({
         flagColor="#c084fc"
       />
 
-      {/* === UPPER NORTH CORNER TOWERS (sitting cleanly on y = 2.6 at z = -57.5) === */}
+      {/* === UPPER SIDE-WALL WATCHTOWERS (y = 2.6) === */}
       <CastleTower3D
-        position={[-13.8, UPPER_CASTLE_Y, -57.5]}
+        position={[-WX, UPPER_CASTLE_Y, -56.5]}
+        radius={1.25}
+        height={5.0}
+        roofColor="#ff85c0"
+        roofHeight={2.4}
+        flagColor="#fde047"
+      />
+      <CastleTower3D
+        position={[WX, UPPER_CASTLE_Y, -56.5]}
+        radius={1.25}
+        height={5.0}
+        roofColor="#c084fc"
+        roofHeight={2.4}
+        flagColor="#7dd3fc"
+      />
+
+      {/* === UPPER NORTH CORNER TOWERS (y = 2.6) === */}
+      <CastleTower3D
+        position={[-WX, UPPER_CASTLE_Y, CASTLE_NORTH_WALL_Z]}
         radius={1.6}
         height={6.4}
         roofColor="#7dd3fc"
@@ -693,7 +785,7 @@ export function RoyalCastlePlatform3D({
         flagColor="#fde047"
       />
       <CastleTower3D
-        position={[13.8, UPPER_CASTLE_Y, -57.5]}
+        position={[WX, UPPER_CASTLE_Y, CASTLE_NORTH_WALL_Z]}
         radius={1.6}
         height={6.4}
         roofColor="#ff6eb4"
@@ -701,26 +793,55 @@ export function RoyalCastlePlatform3D({
         flagColor="#fde047"
       />
 
-      {/* === 2 GRAND TALL ROYAL SPIRES FLANKING THE UPPER THRONE BACKDROP === */}
+      {/* === ROYAL SPIRES ALONG THE NORTH WALL (tall pair frames the throne) === */}
       <CastleTower3D
-        position={[-5.8, UPPER_CASTLE_Y, -57.2]}
-        radius={1.7}
-        height={7.8}
-        roofColor="#c084fc"
-        roofHeight={3.8}
+        position={[-14.5, UPPER_CASTLE_Y, -70.6]}
+        radius={1.3}
+        height={6.2}
+        roofColor="#fde047"
+        roofHeight={3.0}
+        flagColor="#c084fc"
+      />
+      <CastleTower3D
+        position={[14.5, UPPER_CASTLE_Y, -70.6]}
+        radius={1.3}
+        height={6.2}
+        roofColor="#fde047"
+        roofHeight={3.0}
         flagColor="#ff6eb4"
       />
       <CastleTower3D
-        position={[5.8, UPPER_CASTLE_Y, -57.2]}
+        position={[-6.2, UPPER_CASTLE_Y, -70.4]}
         radius={1.7}
-        height={7.8}
+        height={8.4}
+        roofColor="#c084fc"
+        roofHeight={4.0}
+        flagColor="#ff6eb4"
+      />
+      <CastleTower3D
+        position={[6.2, UPPER_CASTLE_Y, -70.4]}
+        radius={1.7}
+        height={8.4}
         roofColor="#7dd3fc"
-        roofHeight={3.8}
+        roofHeight={4.0}
         flagColor="#fde047"
       />
 
-      {/* === ROYAL PRINCESS THRONE & BIRTHDAY STAR GAZEBO (Upper Terrace Center) === */}
-      <RoyalThroneGazebo3D position={[0, UPPER_CASTLE_Y, -53.2]} />
+      {/* === ROYAL PRINCESS THRONE & BIRTHDAY STAR GAZEBO (back of the Upper Terrace) === */}
+      <RoyalThroneGazebo3D position={CASTLE_THRONE_POS} />
+
+      {/* === CASTLE ATTRACTIONS === */}
+      <HeartRoseBed3D position={CASTLE_ROSE_GARDEN_POS} />
+      {CASTLE_TOPIARY_SPOTS.map((tp, i) => (
+        <Topiary3D key={`topiary-${i}`} position={tp.pos} color={tp.color} />
+      ))}
+      <RoyalCarousel3D position={CASTLE_CAROUSEL_POS} />
+      <BirthdayCake3D position={CASTLE_CAKE_POS} />
+      <RoyalCrownPedestal3D position={CASTLE_CROWN_POS} />
+      <SwanPond3D position={CASTLE_SWAN_POND_POS} />
+      {CASTLE_TREE_SPOTS.map((tr, i) => (
+        <PastelTree3D key={`ctree-${i}`} position={tr.pos} color={tr.color} scale={tr.scale} />
+      ))}
     </group>
   );
 }

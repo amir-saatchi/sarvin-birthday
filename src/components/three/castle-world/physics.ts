@@ -1,10 +1,12 @@
 import * as THREE from "three";
-import type { BoxObstacle, CollisionResolutionResult } from "./types";
+import type { BoxObstacle, CapsuleObstacle, CircleObstacle, CollisionResolutionResult } from "./types";
 import {
   BRIDGE_NORTH_Z,
   BRIDGE_SOUTH_Z,
+  CAPSULE_OBSTACLES,
   CASTLE_RAMP,
   CASTLE_RAMP_SIDE_RAILS,
+  CASTLE_WALL_BOXES,
   CIRCLE_OBSTACLES,
   DINO_BRIDGE_CENTER_Z,
   DINO_BRIDGE_EAST_X,
@@ -37,17 +39,22 @@ type SteeringZone =
   | "melody";
 
 function getSteeringZone(x: number, z: number): SteeringZone {
+  // Dinosaur Land reaches further north (z -19.7) than the main island, but nothing else lies east of its bridge
+  if (x > DINO_BRIDGE_EAST_X) return "dino";
+  // North of the main island only the Royal Bridge and the castle exist; the castle is wider than the
+  // x-range where the east/west bridges start, so decide by z first.
+  if (z < BRIDGE_SOUTH_Z) {
+    if (z >= BRIDGE_NORTH_Z) return "bridge";
+    if (z <= UPPER_CASTLE_Z) return "castleUpper";
+    if (z <= CASTLE_RAMP.startZ && Math.abs(x) <= CASTLE_RAMP.maxX) return "castleRamp";
+    return "castleLower";
+  }
   if (x < FROZEN_BRIDGE_WEST_X) return "frozen";
   if (x <= FROZEN_BRIDGE_EAST_X) return "frozenBridge";
-  if (x > DINO_BRIDGE_EAST_X) return "dino";
   if (x >= DINO_BRIDGE_WEST_X) return "dinoBridge";
   if (z > MELODY_BRIDGE_SOUTH_Z) return "melody";
   if (z >= MELODY_BRIDGE_NORTH_Z) return "melodyBridge";
-  if (z > BRIDGE_SOUTH_Z) return "grass";
-  if (z >= BRIDGE_NORTH_Z) return "bridge";
-  if (z <= UPPER_CASTLE_Z) return "castleUpper";
-  if (z <= CASTLE_RAMP.startZ && Math.abs(x) <= CASTLE_RAMP.maxX) return "castleRamp";
-  return "castleLower";
+  return "grass";
 }
 
 export function clampToWalkableZones(x: number, z: number): { x: number; z: number } {
@@ -77,14 +84,71 @@ export function clampToWalkableZones(x: number, z: number): { x: number; z: numb
   return { x: bestX, z: bestZ };
 }
 
+/** Parameter (0..1) along segment c-d of its closest approach to segment p-q, and that squared distance. */
+function closestOnSecondSegment(
+  px: number, pz: number, qx: number, qz: number,
+  cx: number, cz: number, dx: number, dz: number
+): { t: number; distSq: number } {
+  const ux = qx - px, uz = qz - pz;
+  const vx = dx - cx, vz = dz - cz;
+  const wx = px - cx, wz = pz - cz;
+  const a = ux * ux + uz * uz;
+  const b = ux * vx + uz * vz;
+  const c = vx * vx + vz * vz;
+  const d = ux * wx + uz * wz;
+  const e = vx * wx + vz * wz;
+  const den = a * c - b * b;
+  let s = den > 1e-9 ? THREE.MathUtils.clamp((b * e - c * d) / den, 0, 1) : 0;
+  let t = c > 1e-9 ? (b * s + e) / c : 0;
+  if (t < 0 || t > 1) {
+    t = THREE.MathUtils.clamp(t, 0, 1);
+    s = a > 1e-9 ? THREE.MathUtils.clamp((b * t - d) / a, 0, 1) : 0;
+  }
+  const ex = px + ux * s - (cx + vx * t);
+  const ez = pz + uz * s - (cz + vz * t);
+  return { t, distSq: ex * ex + ez * ez };
+}
+
+/**
+ * Sliding works for round things, but along the straight flank of a capsule (Triceratops, fossil plinth) a target
+ * right across it makes the slide flip sides every frame. So when the straight walk would hit a capsule's flank,
+ * aim just past whichever end makes the shorter way round; once the path only grazes an end cap, walk straight on.
+ */
+function detourAroundCapsules(pos: THREE.Vector3, tx: number, tz: number): { x: number; z: number } {
+  for (const cap of CAPSULE_OBSTACLES) {
+    const reach = cap.r + UNICORN_RADIUS;
+    const hit = closestOnSecondSegment(pos.x, pos.z, tx, tz, cap.ax, cap.az, cap.bx, cap.bz);
+    if (hit.distSq >= reach * reach || hit.t <= 0.001 || hit.t >= 0.999) continue;
+    const len = Math.hypot(cap.bx - cap.ax, cap.bz - cap.az) || 1;
+    const ux = (cap.bx - cap.ax) / len;
+    const uz = (cap.bz - cap.az) / len;
+    const out = reach + 0.35;
+    const wa = { x: cap.ax - ux * out, z: cap.az - uz * out };
+    const wb = { x: cap.bx + ux * out, z: cap.bz + uz * out };
+    const via = (w: { x: number; z: number }) =>
+      Math.hypot(w.x - pos.x, w.z - pos.z) + Math.hypot(tx - w.x, tz - w.z);
+    return via(wa) <= via(wb) ? wa : wb;
+  }
+  return { x: tx, z: tz };
+}
+
 /**
  * Guides click-to-move smoothly across the Royal Bridge (grass <-> castle),
  * the Sloped Royal Ramp (lower courtyard <-> upper castle terrace),
  * the Crystal Ice Bridge (grass <-> frozen land),
  * the Dino Log Bridge (grass <-> dinosaur land),
- * and the Pastel Ribbon Bridge (grass <-> My Melody & Kuromi Land).
+ * and the Pastel Ribbon Bridge (grass <-> My Melody & Kuromi Land),
+ * and round the long flanks of capsule obstacles.
  */
 export function getCrossZoneSteeringTarget(
+  pos: THREE.Vector3,
+  target: THREE.Vector3
+): { x: number; z: number } {
+  const steer = getBridgeSteeringTarget(pos, target);
+  return CAPSULE_OBSTACLES.length ? detourAroundCapsules(pos, steer.x, steer.z) : steer;
+}
+
+function getBridgeSteeringTarget(
   pos: THREE.Vector3,
   target: THREE.Vector3
 ): { x: number; z: number } {
@@ -327,7 +391,9 @@ export function getCrossZoneSteeringTarget(
   // 5. Lower Castle Courtyard -> Upper Terrace / Ramp OR back out to Bridge / Grass / Frozen / Dino
   if (posIsCastle) {
     if (targetZone === "castleUpper" || targetZone === "castleRamp") {
-      if (Math.abs(pos.x) > 1.75 || pos.z < CASTLE_RAMP.startZ + 0.2) {
+      // Off to the side: line up in front of the ramp first. (Already lined up: walk straight on up;
+      // sending a unicorn at the ramp foot back to the line-up point made it trot in place there.)
+      if (Math.abs(pos.x) > 1.75) {
         return { x: THREE.MathUtils.clamp(pos.x, -1.25, 1.25), z: CASTLE_RAMP.startZ + 1.0 };
       }
       return {
@@ -336,9 +402,12 @@ export function getCrossZoneSteeringTarget(
       };
     }
 
-    // Heading south toward bridge / grass / frozen land / dinosaur land / melody & kuromi land
+    // Heading south toward bridge / grass / frozen land / dinosaur land / melody & kuromi land.
+    // First line up on the carpet a little inside the gate, well clear of the gatehouse towers
+    // (their collision circles reach z ≈ -27.0), so a unicorn coming from the far side of the
+    // wide courtyard doesn't get wedged between a gate tower and the south wall.
     if (Math.abs(pos.x) > 1.7) {
-      return { x: THREE.MathUtils.clamp(pos.x, -1.35, 1.35), z: BRIDGE_NORTH_Z - 0.4 };
+      return { x: THREE.MathUtils.clamp(pos.x, -1.35, 1.35), z: BRIDGE_NORTH_Z - 2.8 };
     }
     return {
       x: THREE.MathUtils.clamp(target.x, -1.5, 1.5),
@@ -440,11 +509,33 @@ export function pushOutOfCircle(
   return false;
 }
 
-/** Moves a point out of every circular obstacle (to the unicorn's standing distance). */
+/** Seen from (x, z), a capsule acts like a circle centred on its segment's nearest point (written into `out`). */
+export function capsuleCircleAt(
+  c: CapsuleObstacle,
+  x: number,
+  z: number,
+  out: CircleObstacle = { x: 0, z: 0, r: 0 }
+): CircleObstacle {
+  const sx = c.bx - c.ax;
+  const sz = c.bz - c.az;
+  const lenSq = sx * sx + sz * sz;
+  const t = lenSq > 1e-9 ? THREE.MathUtils.clamp(((x - c.ax) * sx + (z - c.az) * sz) / lenSq, 0, 1) : 0;
+  out.x = c.ax + sx * t;
+  out.z = c.az + sz * t;
+  out.r = c.r;
+  return out;
+}
+const capsuleScratch: CircleObstacle = { x: 0, z: 0, r: 0 };
+
+/** Moves a point out of every circular / capsule obstacle (to the unicorn's standing distance). */
 export function pushPointOutOfCircleObstacles(x: number, z: number): { x: number; z: number } {
   const p = new THREE.Vector3(x, 0, z);
   for (const obs of CIRCLE_OBSTACLES) {
     pushOutOfCircle(p, obs.x, obs.z, obs.r + UNICORN_RADIUS);
+  }
+  for (const cap of CAPSULE_OBSTACLES) {
+    const c = capsuleCircleAt(cap, p.x, p.z, capsuleScratch);
+    pushOutOfCircle(p, c.x, c.z, c.r + UNICORN_RADIUS);
   }
   return { x: p.x, z: p.z };
 }
@@ -463,7 +554,22 @@ export function slideStepAroundCircles(
   const origLen = Math.hypot(dx, dz);
   if (origLen < 1e-6) return { dx, dz };
 
-  for (const obs of CIRCLE_OBSTACLES) {
+  // Circles first, then each capsule as the circle on its segment nearest the unicorn (its surface normal there)
+  const nearCapsule: CircleObstacle = { x: 0, z: 0, r: 0 };
+  const obstacles: Iterable<CircleObstacle> = CAPSULE_OBSTACLES.length
+    ? (function* () {
+        yield* CIRCLE_OBSTACLES;
+        for (const cap of CAPSULE_OBSTACLES) {
+          // Skip capsules the step doesn't reach; otherwise slide along the surface facing the unicorn
+          const ahead = capsuleCircleAt(cap, pos.x + dx, pos.z + dz, nearCapsule);
+          const reach = ahead.r + UNICORN_RADIUS;
+          if ((pos.x + dx - ahead.x) ** 2 + (pos.z + dz - ahead.z) ** 2 >= reach * reach) continue;
+          yield capsuleCircleAt(cap, pos.x, pos.z, nearCapsule);
+        }
+      })()
+    : CIRCLE_OBSTACLES;
+
+  for (const obs of obstacles) {
     const minDist = obs.r + UNICORN_RADIUS;
     const nx0 = pos.x + dx - obs.x;
     const nz0 = pos.z + dz - obs.z;
@@ -576,9 +682,19 @@ export function resolvePlayerCollisions(
     pushOutOfBox(pos, rail, UNICORN_RADIUS);
   }
 
+  // South castle walls on either side of the gatehouse
+  for (const wall of CASTLE_WALL_BOXES) {
+    pushOutOfBox(pos, wall, UNICORN_RADIUS);
+  }
+
   // Solid circle collisions with fountain, castle towers, throne, trees, lamps, lollipops, crystals, bunnies & gifts
   for (const obs of CIRCLE_OBSTACLES) {
     pushOutOfCircle(pos, obs.x, obs.z, obs.r + UNICORN_RADIUS);
+  }
+  // Long rounded obstacles (Triceratops, sitting dinos, fossil plinth)
+  for (const cap of CAPSULE_OBSTACLES) {
+    const c = capsuleCircleAt(cap, pos.x, pos.z, capsuleScratch);
+    pushOutOfCircle(pos, c.x, c.z, c.r + UNICORN_RADIUS);
   }
 
   // Keep cleanly within the union of the 3 connected walkable zones (grass, bridge, castle)

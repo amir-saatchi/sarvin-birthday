@@ -55,3 +55,12 @@ export {
 
 export { TargetRing3D } from "./TargetRing3D";
 export { UnicornPlayer3D } from "./UnicornPlayer3D";
+
+export {
+  HeartRoseBed3D,
+  Topiary3D,
+  RoyalCarousel3D,
+  BirthdayCake3D,
+  RoyalCrownPedestal3D,
+  SwanPond3D,
+} from "./CastleGardenAssets";

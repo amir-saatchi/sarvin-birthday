@@ -115,3 +115,56 @@ body {
   min-height: 220px !important;
   max-height: none !important;
 }
+
+/* Immersive fullscreen (games that opt in with .game-stage-immersive): the canvas fills the whole
+   screen edge to edge and the HUD floats over it, so a landscape phone keeps the full height */
+[data-game-fullscreen="true"]:has(.game-stage-immersive) {
+  padding: 0 !important;
+}
+
+[data-game-fullscreen="true"] .game-stage-immersive {
+  position: relative;
+}
+
+[data-game-fullscreen="true"] .game-stage-immersive .game-stage-canvas {
+  min-height: 0 !important;
+  border-width: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+[data-game-fullscreen="true"] .game-stage-immersive .game-stage-hud {
+  position: absolute;
+  top: max(0.5rem, env(safe-area-inset-top));
+  left: max(0.5rem, env(safe-area-inset-left));
+  right: max(0.5rem, env(safe-area-inset-right));
+  z-index: 30;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+[data-game-fullscreen="true"] .game-stage-immersive .game-stage-hud > * {
+  pointer-events: auto;
+}
+
+/* Pills get a solid backing so they stay readable over the 3D scene */
+[data-game-fullscreen="true"] .game-stage-immersive .game-stage-hud > * > *,
+[data-game-fullscreen="true"] .game-stage-immersive .game-stage-hud > button {
+  box-shadow: 0 2px 8px rgb(88 28 135 / 0.18);
+  border: 2px solid rgb(255 255 255 / 0.9);
+}
+
+/* Toasts and the win banner sit below the floating HUD */
+[data-game-fullscreen="true"] .game-stage-immersive .game-stage-top-overlay {
+  top: calc(max(0.5rem, env(safe-area-inset-top)) + 3rem);
+}
+
+/* Compact music player while a game is fullscreen */
+html:has([data-game-fullscreen="true"]) .music-controls-title {
+  display: none;
+}

@@ -467,9 +467,10 @@ export class CastleMusic {
 /** Which land's arrangement to play for a player position (bridges switch halfway across). */
 export function castleZoneAt(x: number, z: number): CastleZone {
   if (Math.abs(x) > 1e5) return "garden"; // player position not known yet
+  // Castle first: the grand castle (z < -20.7) is nearly as wide as the gaps to Frozen/Dino Land
+  if (z < -20.7) return "castle";
   if (x < -23.5) return "frozen";
   if (x > 23.5) return "dino";
   if (z > 24) return "sweet";
-  if (z < -20.7) return "castle";
   return "garden";
 }

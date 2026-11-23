@@ -126,9 +126,9 @@ export function CastleWorldGame3D() {
   };
 
   return (
-    <div className="game-stage-root w-full">
-      {/* Compact HUD */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-white/90 bg-white/85 px-3 py-2 shadow-md backdrop-blur sm:mb-4 sm:gap-3 sm:rounded-3xl sm:px-4 sm:py-3">
+    <div className="game-stage-root game-stage-immersive w-full">
+      {/* Compact HUD (floats over the canvas in fullscreen) */}
+      <div className="game-stage-hud mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-white/90 bg-white/85 px-3 py-2 shadow-md backdrop-blur sm:mb-4 sm:gap-3 sm:rounded-3xl sm:px-4 sm:py-3">
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 sm:px-4 sm:py-1.5">
             <Star className="h-4 w-4 fill-amber-400 text-amber-500 sm:h-5 sm:w-5" />
@@ -171,7 +171,7 @@ export function CastleWorldGame3D() {
 
         {/* Kawaii Friend / Castle / Fountain Speech Toast */}
         {toastMsg && !won && (
-          <div className="pointer-events-none absolute top-3 left-1/2 z-20 w-[90%] max-w-md -translate-x-1/2 text-center">
+          <div className="game-stage-top-overlay pointer-events-none absolute top-3 left-1/2 z-20 w-[90%] max-w-md -translate-x-1/2 text-center">
             <div className="font-display inline-block rounded-full border-2 border-white bg-white/92 px-4 py-2 text-xs font-bold text-purple-900 shadow-lg backdrop-blur sm:text-sm">
               {toastMsg}
             </div>
@@ -182,7 +182,7 @@ export function CastleWorldGame3D() {
         {/* Compact banner at the top and the button at the bottom, so the celebrating pony stays visible */}
         {won && (
           <>
-            <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex justify-center text-center">
+            <div className="game-stage-top-overlay pointer-events-none absolute inset-x-3 top-3 z-20 flex justify-center text-center">
               <div className="kawaii-card max-w-sm rounded-2xl px-4 py-2.5">
                 <h2 className="font-display flex items-center justify-center gap-1.5 text-lg font-bold text-purple-900 sm:text-xl">
                   <Trophy className="h-5 w-5 shrink-0 text-amber-500" />

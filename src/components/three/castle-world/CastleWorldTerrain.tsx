@@ -4,7 +4,6 @@ import React from "react";
 import type { ThreeEvent } from "@react-three/fiber";
 import {
   FluffyCloud3D,
-  KawaiiBunnyFriend3D,
   KawaiiGiftBox3D,
   MagicWand3D,
   RainbowArch3D,
@@ -35,7 +34,6 @@ import {
 } from "./assets";
 import {
   BOUNCE_MUSHROOMS,
-  BUNNY_FRIENDS,
   BUTTERFLY_SPOTS,
   CLOUD_SPOTS,
   CRYSTAL_SPOTS,
@@ -289,17 +287,6 @@ function CastleWorldTerrainImpl({
       {/* Bouncy Pink Mushrooms */}
       {BOUNCE_MUSHROOMS.map((m, i) => (
         <BounceMushroom3D key={`mush-${i}`} position={m} />
-      ))}
-
-      {/* Interactive Kawaii Friends */}
-      {BUNNY_FRIENDS.map((friend, i) => (
-        <KawaiiBunnyFriend3D
-          key={`friend-${i}`}
-          variant={friend.variant}
-          position={friend.pos}
-          rotation={friend.rotation}
-          scale={friend.scale}
-        />
       ))}
 
       {/* Gift Boxes & Magic Wands around the Kingdom & Castle Courtyard */}

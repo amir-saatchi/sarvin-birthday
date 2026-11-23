@@ -44,6 +44,15 @@ export type CircleObstacle = {
   r: number;
 };
 
+/** Rounded "stadium" obstacle: every point within r of the segment a-b (for long things like a big dino). */
+export type CapsuleObstacle = {
+  ax: number;
+  az: number;
+  bx: number;
+  bz: number;
+  r: number;
+};
+
 export type BoxObstacle = {
   minX: number;
   maxX: number;
@@ -88,13 +97,6 @@ export type ButterflySpot = {
   center: Vec3;
   color: string;
   speed: number;
-};
-
-export type BunnyFriendSpot = {
-  variant: "pink" | "purple";
-  pos: Vec3;
-  rotation: Vec3;
-  scale: number;
 };
 
 export type CloudSpot = {

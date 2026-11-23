@@ -18,8 +18,37 @@ import {
   DINO_STEGO_POS,
   DINO_TRIKE_POS,
   DINO_VOLCANO_POS,
+  DINO_TRICERATOPS_POS,
+  DINO_TRICERATOPS_YAW,
+  DINO_TRICERATOPS_HEIGHT,
+  DINO_BIG_BLUE_POS,
+  DINO_BIG_BLUE_YAW,
+  DINO_BIG_BLUE_HEIGHT,
+  DINO_BABY_PINK_POS,
+  DINO_BABY_PINK_YAW,
+  DINO_BABY_PINK_HEIGHT,
+  DINO_FOSSIL_PIT_POS,
+  DINO_SKELETON_POS,
+  DINO_SKELETON_PLINTH_HALF,
+  DINO_SKELETON_PLINTH_R,
+  DINO_PICNIC_POS,
+  DINO_BOUNCE_EGGS,
+  DINO_FERN_SPOTS,
+  DINO_MUSHROOM_SPOTS,
+  DINO_FOOTPRINT_TRAILS,
 } from "../worldData";
 import { GiantFlower3D } from "./WorldNatureAssets";
+import {
+  BABY_PINK_DINO_COLORS,
+  BounceEgg3D,
+  DinoFootprints3D,
+  FossilDig3D,
+  PicnicBlanket3D,
+  PrehistoricFern3D,
+  SittingDinoModel3D,
+  SpottedMushroom3D,
+  TriceratopsModel3D,
+} from "./DinoFriendsAssets";
 
 // Warm-wood tropical archway wrapped in vines & flowers framing the East Dino Log Bridge entrance
 export function JungleArchway3D({
@@ -1087,22 +1116,28 @@ function JungleFenceRow3D({
   );
 }
 
-// Floating 28 × 30 Tropical Dinosaur Land Island (x ∈ [27.5, 55.5], z ∈ [-13.0, 17.0], centered at [41.5, 0, 2.0])
+// Floating 40 × 46 Tropical Dinosaur Land Island (x ∈ [27.5, 67.5], z ∈ [-21.0, 25.0], centered at [47.5, 0, 2.0])
 export function DinoLandPlatform3D({
   onGroundClick,
 }: {
   onGroundClick: (e: ThreeEvent<PointerEvent>) => void;
 }) {
   const cloudPuffs: [number, number, number, number][] = [
-    [54.5, -2.5, -11.5, 2.7],
-    [28.5, -2.5, -11.5, 2.5],
-    [54.8, -2.6, 2.0, 3.0],
-    [54.5, -2.5, 15.5, 2.7],
-    [28.5, -2.5, 15.5, 2.5],
-    [41.5, -3.0, -12.8, 3.2],
-    [41.5, -3.0, 16.8, 3.2],
-    [48.0, -2.9, 16.0, 2.6],
-    [35.0, -2.9, -12.0, 2.6],
+    [66.5, -2.5, -19.5, 2.8],
+    [28.5, -2.5, -19.5, 2.6],
+    [66.8, -2.6, 2.0, 3.2],
+    [66.5, -2.5, 23.5, 2.8],
+    [28.5, -2.5, 23.5, 2.6],
+    [47.5, -3.0, -20.8, 3.4],
+    [47.5, -3.0, 24.8, 3.4],
+    [37.0, -2.9, -20.4, 2.8],
+    [58.0, -2.9, -20.4, 2.8],
+    [37.0, -2.9, 24.4, 2.8],
+    [58.0, -2.9, 24.4, 2.8],
+    [28.4, -2.8, -9.0, 2.6],
+    [28.4, -2.8, 13.0, 2.6],
+    [66.8, -2.8, -9.5, 2.7],
+    [66.8, -2.8, 13.5, 2.7],
   ];
 
   const lagoonPebbles = useMemo(() => {
@@ -1118,23 +1153,28 @@ export function DinoLandPlatform3D({
     });
   }, []);
 
-  const junglePathTiles = [29.2, 31.8, 34.4, 37.0, 39.6, 42.2, 44.8];
+  const junglePathTiles = [29.2, 31.8, 34.4, 37.0, 39.6, 42.2, 44.8, 50.0, 52.6, 55.2, 57.8];
+  const eggColors: [string, string][] = [
+    ["#fef3c7", "#f9a8d4"],
+    ["#e0f2fe", "#a78bfa"],
+    ["#fce7f3", "#5eead4"],
+  ];
 
   return (
     <group>
-      {/* === SUNLIT TROPICAL GRASS TOP DECK (28 × 30, exact x ∈ [27.5, 55.5], z ∈ [-13.0, 17.0], top at y = 0) === */}
-      <mesh position={[41.5, -0.25, 2.0]} onPointerDown={onGroundClick} receiveShadow>
-        <boxGeometry args={[28, 0.5, 30]} />
+      {/* === SUNLIT TROPICAL GRASS TOP DECK (40 × 46, exact x ∈ [27.5, 67.5], z ∈ [-21.0, 25.0], top at y = 0) === */}
+      <mesh position={[47.5, -0.25, 2.0]} onPointerDown={onGroundClick} receiveShadow>
+        <boxGeometry args={[40, 0.5, 46]} />
         <meshStandardMaterial color="#65d46e" roughness={0.65} />
       </mesh>
 
       {/* Chunky Warm Terracotta & Ochre Floating Cliff Underside */}
-      <mesh position={[41.5, -1.55, 2.0]}>
-        <boxGeometry args={[27.2, 2.1, 29.2]} />
+      <mesh position={[47.5, -1.55, 2.0]}>
+        <boxGeometry args={[39.2, 2.1, 45.2]} />
         <meshStandardMaterial color="#d97706" roughness={0.82} />
       </mesh>
-      <mesh position={[41.5, -3.05, 2.0]}>
-        <boxGeometry args={[25.8, 0.9, 27.8]} />
+      <mesh position={[47.5, -3.05, 2.0]}>
+        <boxGeometry args={[37.8, 0.9, 43.8]} />
         <meshStandardMaterial color="#b45309" roughness={0.88} />
       </mesh>
 
@@ -1206,16 +1246,16 @@ export function DinoLandPlatform3D({
       </group>
 
       {/* === PERIMETER WOODEN/BAMBOO JUNGLE FENCES (closing all 4 corners cleanly, west bridge opening z ∈ [-0.8, 4.8]) === */}
-      {/* East Edge (x = 54.9, z ∈ [-12.4, 16.4]) */}
-      <JungleFenceRow3D position={[54.9, 0, 2.0]} length={28.8} rotationY={Math.PI / 2} />
-      {/* North Edge (z = -12.4, x ∈ [28.1, 54.9]) */}
-      <JungleFenceRow3D position={[41.5, 0, -12.4]} length={26.8} />
-      {/* South Edge (z = 16.4, x ∈ [28.1, 54.9]) */}
-      <JungleFenceRow3D position={[41.5, 0, 16.4]} length={26.8} />
-      {/* West Edge North Segment (x = 28.1, z ∈ [-12.4, -0.8]) */}
-      <JungleFenceRow3D position={[28.1, 0, -6.6]} length={11.6} rotationY={Math.PI / 2} />
-      {/* West Edge South Segment (x = 28.1, z ∈ [4.8, 16.4]) */}
-      <JungleFenceRow3D position={[28.1, 0, 10.6]} length={11.6} rotationY={Math.PI / 2} />
+      {/* East Edge (x = 66.9, z ∈ [-20.4, 24.4]) */}
+      <JungleFenceRow3D position={[66.9, 0, 2.0]} length={44.8} rotationY={Math.PI / 2} />
+      {/* North Edge (z = -20.4, x ∈ [28.1, 66.9]) */}
+      <JungleFenceRow3D position={[47.5, 0, -20.4]} length={38.8} />
+      {/* South Edge (z = 24.4, x ∈ [28.1, 66.9]) */}
+      <JungleFenceRow3D position={[47.5, 0, 24.4]} length={38.8} />
+      {/* West Edge North Segment (x = 28.1, z ∈ [-20.4, -0.8]) */}
+      <JungleFenceRow3D position={[28.1, 0, -10.6]} length={19.6} rotationY={Math.PI / 2} />
+      {/* West Edge South Segment (x = 28.1, z ∈ [4.8, 24.4]) */}
+      <JungleFenceRow3D position={[28.1, 0, 14.6]} length={19.6} rotationY={Math.PI / 2} />
 
       {/* === TROPICAL PALM TREES === */}
       {DINO_PALM_SPOTS.map((tree, idx) => (
@@ -1231,6 +1271,49 @@ export function DinoLandPlatform3D({
       <HeraBronto3D position={DINO_BRONTO_POS} rotation={[0, DINO_BRONTO_YAW, 0]} scale={1.15} />
       <KawaiiTrike3D position={DINO_TRIKE_POS} rotation={[0, 0.85, 0]} scale={1.12} />
       <KawaiiStego3D position={DINO_STEGO_POS} rotation={[0, 0.45, 0]} scale={1.12} />
+
+      {/* === NEW DINO FRIENDS (sculpted GLB models; the triceratops falls back to the primitive trike while loading) === */}
+      <Suspense
+        fallback={
+          <KawaiiTrike3D position={DINO_TRICERATOPS_POS} rotation={[0, DINO_TRICERATOPS_YAW, 0]} scale={1.3} />
+        }
+      >
+        <TriceratopsModel3D
+          position={DINO_TRICERATOPS_POS}
+          yaw={DINO_TRICERATOPS_YAW}
+          height={DINO_TRICERATOPS_HEIGHT}
+        />
+      </Suspense>
+      <Suspense fallback={null}>
+        <SittingDinoModel3D position={DINO_BIG_BLUE_POS} yaw={DINO_BIG_BLUE_YAW} height={DINO_BIG_BLUE_HEIGHT} />
+        <SittingDinoModel3D
+          position={DINO_BABY_PINK_POS}
+          yaw={DINO_BABY_PINK_YAW}
+          height={DINO_BABY_PINK_HEIGHT}
+          colors={BABY_PINK_DINO_COLORS}
+          noticeDist={4}
+        />
+      </Suspense>
+
+      {/* === FOSSIL DIG, PICNIC, BOUNCY EGGS, FERN GROVE & FOOTPRINT TRAILS === */}
+      <FossilDig3D
+        pitPos={DINO_FOSSIL_PIT_POS}
+        skeletonPos={DINO_SKELETON_POS}
+        plinthHalf={DINO_SKELETON_PLINTH_HALF}
+        plinthR={DINO_SKELETON_PLINTH_R}
+        onGroundClick={onGroundClick}
+      />
+      <PicnicBlanket3D position={DINO_PICNIC_POS} onGroundClick={onGroundClick} />
+      {DINO_BOUNCE_EGGS.map((p, idx) => (
+        <BounceEgg3D key={`degg-${idx}`} position={p} color={eggColors[idx % 3][0]} spotColor={eggColors[idx % 3][1]} />
+      ))}
+      {DINO_FERN_SPOTS.map((f, idx) => (
+        <PrehistoricFern3D key={`dfern-${idx}`} position={f.pos} color={f.color} scale={f.scale} />
+      ))}
+      {DINO_MUSHROOM_SPOTS.map((m, idx) => (
+        <SpottedMushroom3D key={`dmush-${idx}`} position={m.pos} color={m.color} />
+      ))}
+      <DinoFootprints3D trails={DINO_FOOTPRINT_TRAILS} />
 
       {/* === FRIENDLY BUBBLE VOLCANO & COZY DINO EGG NEST === */}
       <FriendlyVolcano3D position={DINO_VOLCANO_POS} />
@@ -1248,9 +1331,9 @@ export function DinoLandPlatform3D({
 
       {/* === GOLDEN JUNGLE FIREFLY SPARKLES === */}
       <Sparkles
-        count={75}
-        position={[41.5, 3.6, 2.0]}
-        scale={[26, 7.5, 28]}
+        count={130}
+        position={[47.5, 3.6, 2.0]}
+        scale={[38, 7.5, 44]}
         size={4.6}
         speed={0.38}
         color="#fde047"

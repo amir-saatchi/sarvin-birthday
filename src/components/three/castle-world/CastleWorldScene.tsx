@@ -20,7 +20,17 @@ import {
 } from "./physics";
 import {
   BOUNCE_MUSHROOMS,
+  CASTLE_CAKE_POS,
+  CASTLE_CAROUSEL_POS,
+  CASTLE_CROWN_POS,
+  CASTLE_ROSE_GARDEN_POS,
+  CASTLE_SWAN_POND_POS,
+  DINO_BABY_PINK_POS,
+  DINO_BIG_BLUE_POS,
+  DINO_BOUNCE_EGGS,
   DINO_BRONTO_POS,
+  DINO_SKELETON_POS,
+  DINO_TRICERATOPS_POS,
   FROZEN_OLAF_POS,
   FROZEN_SNOWMAN_POS,
   HEART_TRAIL,
@@ -71,6 +81,7 @@ export function CastleWorldScene({
   const inFrozenLandRef = useRef(false);
   const inDinoLandRef = useRef(false);
   const inMelodyLandRef = useRef(false);
+  const inCastleRef = useRef(false);
   const blockedTimerRef = useRef(0);
 
   useEffect(() => {
@@ -247,7 +258,7 @@ export function CastleWorldScene({
     }
 
     const now = performance.now();
-    for (const [mx, , mz] of BOUNCE_MUSHROOMS) {
+    for (const [mx, , mz] of [...BOUNCE_MUSHROOMS, ...DINO_BOUNCE_EGGS]) {
       if (
         Math.hypot(pos.x - mx, pos.z - mz) < 0.95 &&
         pos.y < 0.2 &&
@@ -291,6 +302,8 @@ export function CastleWorldScene({
       }
     };
 
+    const nearXZ = (p: readonly number[], r: number) =>
+      Math.hypot(pos.x - p[0], pos.z - p[2]) < r;
     const snowmanDist = Math.hypot(
       pos.x - FROZEN_SNOWMAN_POS[0],
       pos.z - FROZEN_SNOWMAN_POS[2]
@@ -328,6 +341,14 @@ export function CastleWorldScene({
       inDinoLandRef.current = false;
     }
 
+    // One-time-on-entry Royal Castle welcome message (resets when returning south across the Royal Bridge)
+    if (pos.z < -26.0 && !inCastleRef.current) {
+      inCastleRef.current = true;
+      triggerOnEnter("castle", t.castleWorld.castleGateMsg);
+    } else if (pos.z > -22.0) {
+      inCastleRef.current = false;
+    }
+
     // One-time-on-entry My Melody & Kuromi Land welcome message (resets when returning north across the Pastel Ribbon Bridge)
     if (pos.z > 29.5 && !inMelodyLandRef.current) {
       inMelodyLandRef.current = true;
@@ -342,22 +363,35 @@ export function CastleWorldScene({
       triggerOnEnter("kuromiHost", t.castleWorld.kuromiHostMsg);
     } else if (brontoDist < 2.8) {
       triggerOnEnter("bronto", t.castleWorld.brontoMsg);
+    } else if (nearXZ(DINO_TRICERATOPS_POS, 3.6)) {
+      triggerOnEnter("triceratops", t.castleWorld.triceratopsMsg);
+    } else if (nearXZ(DINO_BIG_BLUE_POS, 3.0)) {
+      triggerOnEnter("bigBlue", t.castleWorld.bigBlueMsg);
+    } else if (nearXZ(DINO_BABY_PINK_POS, 2.4)) {
+      triggerOnEnter("babyPink", t.castleWorld.babyPinkMsg);
+    } else if (nearXZ(DINO_SKELETON_POS, 3.8)) {
+      triggerOnEnter("fossil", t.castleWorld.dinoFossilMsg);
     } else if (olafDist < 2.4) {
       triggerOnEnter("olaf", t.castleWorld.olafMsg);
     } else if (snowmanDist < 2.4) {
       triggerOnEnter("snowman", t.castleWorld.snowmanMsg);
-    } else if (Math.hypot(pos.x - -11.5, pos.z - 2.2) < 2.2) {
-      triggerOnEnter("pink", t.castleWorld.friendPinkMsg);
-    } else if (Math.hypot(pos.x - 11.5, pos.z - 2.2) < 2.2) {
-      triggerOnEnter("purple", t.castleWorld.friendPurpleMsg);
-    } else if (pos.z < -26.0) {
-      triggerOnEnter("castle", t.castleWorld.castleGateMsg);
+    } else if (nearXZ(CASTLE_CAKE_POS, 3.4)) {
+      triggerOnEnter("cake", t.castleWorld.castleCakeMsg);
+    } else if (nearXZ(CASTLE_CAROUSEL_POS, 4.2)) {
+      triggerOnEnter("carousel", t.castleWorld.castleCarouselMsg);
+    } else if (nearXZ(CASTLE_SWAN_POND_POS, 4.0)) {
+      triggerOnEnter("swans", t.castleWorld.castleSwanPondMsg);
+    } else if (nearXZ(CASTLE_CROWN_POS, 2.9)) {
+      triggerOnEnter("crown", t.castleWorld.castleCrownMsg);
+    } else if (nearXZ(CASTLE_ROSE_GARDEN_POS, 2.4)) {
+      triggerOnEnter("roses", t.castleWorld.castleRoseGardenMsg);
     } else if (fDist < 2.6) {
       triggerOnEnter("fountain", t.castleWorld.fountainMsg);
     } else if (
       (activeGreetingZoneRef.current !== "frozen" || pos.x >= -28.5) &&
       (activeGreetingZoneRef.current !== "dino" || pos.x <= 28.5) &&
-      (activeGreetingZoneRef.current !== "melodyLand" || pos.z <= 29.5)
+      (activeGreetingZoneRef.current !== "melodyLand" || pos.z <= 29.5) &&
+      (activeGreetingZoneRef.current !== "castle" || pos.z >= -26.0)
     ) {
       activeGreetingZoneRef.current = null;
     }
@@ -440,9 +474,9 @@ export function CastleWorldScene({
 
       <Sparkles count={95} scale={[36, 7, 34]} size={4.8} speed={0.4} color="#fef08a" />
       <Sparkles
-        count={60}
-        position={[0, 3.8, -42]}
-        scale={[26, 8, 32]}
+        count={80}
+        position={[0, 4.2, -48]}
+        scale={[44, 8, 46]}
         size={4.8}
         speed={0.4}
         color="#fbcfe8"
