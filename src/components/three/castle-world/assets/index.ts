@@ -54,3 +54,4 @@ export {
 } from "./MelodyKuromiAssets";
 
 export { TargetRing3D } from "./TargetRing3D";
+export { UnicornPlayer3D } from "./UnicornPlayer3D";

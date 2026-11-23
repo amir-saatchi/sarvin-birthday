@@ -4,14 +4,10 @@ import React, { useCallback, useEffect, useRef } from "react";
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Float, Sparkles } from "@react-three/drei";
 import * as THREE from "three";
-import {
-  CuteUnicorn3D,
-  ExtrudedHeart3D,
-  ExtrudedStar3D,
-} from "../MagicalDecor3D";
+import { ExtrudedHeart3D, ExtrudedStar3D } from "../MagicalDecor3D";
 import { playPopSound, playSparkleSound } from "@/lib/soundEffects";
 import { t } from "@/config/translate";
-import { TargetRing3D } from "./assets";
+import { TargetRing3D, UnicornPlayer3D } from "./assets";
 import { CastleWorldTerrain } from "./CastleWorldTerrain";
 import {
   clampToWalkableZones,
@@ -353,8 +349,8 @@ export function CastleWorldScene({
     }
 
     // Smooth 3rd-person elevated follow camera — tracks full X across Frozen Land, Green Land & future East worlds!
-    const camOffsetY = isNarrow ? 9.2 : 7.8;
-    const camOffsetZ = isNarrow ? 11.6 : 10.0;
+    const camOffsetY = isNarrow ? 4.8 : 4.2;
+    const camOffsetZ = isNarrow ? 6.8 : 5.8;
     const desiredCamPos = new THREE.Vector3(
       pos.x,
       camOffsetY + pos.y * 0.9,
@@ -417,7 +413,7 @@ export function CastleWorldScene({
         ref={playerGroupRef}
         position={[PLAYER_START_POS[0], PLAYER_START_POS[1] + 0.16, PLAYER_START_POS[2]]}
       >
-        <CuteUnicorn3D scale={0.96} celebrating={won} />
+        <UnicornPlayer3D celebrating={won} />
       </group>
 
       <Sparkles count={95} scale={[36, 7, 34]} size={4.8} speed={0.4} color="#fef08a" />
