@@ -36,7 +36,9 @@ import {
   DINO_FERN_SPOTS,
   DINO_MUSHROOM_SPOTS,
   DINO_FOOTPRINT_TRAILS,
+  CIRCLE_OBSTACLES,
 } from "../worldData";
+import { GrassDeck3D, GrassTufts3D } from "./GrassAssets";
 import { GiantFlower3D } from "./WorldNatureAssets";
 import {
   BABY_PINK_DINO_COLORS,
@@ -1154,6 +1156,19 @@ export function DinoLandPlatform3D({
   }, []);
 
   const junglePathTiles = [29.2, 31.8, 34.4, 37.0, 39.6, 42.2, 44.8, 50.0, 52.6, 55.2, 57.8];
+  // Spots the grass tufts stay off: path tiles, footprints, lagoon, fossil pit, picnic and solid things
+  const dinoTuftClear = useMemo(
+    () => [
+      ...CIRCLE_OBSTACLES.map((o) => ({ x: o.x, z: o.z, r: o.r + 0.3 })),
+      ...junglePathTiles.map((x) => ({ x, z: 2.0, r: 1.3 })),
+      ...DINO_FOOTPRINT_TRAILS.flat().map(([x, z]) => ({ x, z, r: 0.7 })),
+      { x: DINO_LAGOON_POS[0], z: DINO_LAGOON_POS[2], r: 4.6 },
+      { x: DINO_FOSSIL_PIT_POS[0], z: DINO_FOSSIL_PIT_POS[2], r: 3.4 },
+      { x: DINO_PICNIC_POS[0], z: DINO_PICNIC_POS[2], r: 2.4 },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
   const eggColors: [string, string][] = [
     ["#fef3c7", "#f9a8d4"],
     ["#e0f2fe", "#a78bfa"],
@@ -1163,10 +1178,8 @@ export function DinoLandPlatform3D({
   return (
     <group>
       {/* === SUNLIT TROPICAL GRASS TOP DECK (40 × 46, exact x ∈ [27.5, 67.5], z ∈ [-21.0, 25.0], top at y = 0) === */}
-      <mesh position={[47.5, -0.25, 2.0]} onPointerDown={onGroundClick} receiveShadow>
-        <boxGeometry args={[40, 0.5, 46]} />
-        <meshStandardMaterial color="#65d46e" roughness={0.65} />
-      </mesh>
+      <GrassDeck3D position={[47.5, -0.25, 2.0]} size={[40, 0.5, 46]} color="#65d46e" onPointerDown={onGroundClick} />
+      <GrassTufts3D minX={28.0} maxX={67.0} minZ={-20.5} maxZ={24.5} count={560} keepClear={dinoTuftClear} seed={23} />
 
       {/* Chunky Warm Terracotta & Ochre Floating Cliff Underside */}
       <mesh position={[47.5, -1.55, 2.0]}>

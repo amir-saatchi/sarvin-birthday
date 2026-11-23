@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { GrassDeck3D, GrassTufts3D } from "./assets/GrassAssets";
 import type { ThreeEvent } from "@react-three/fiber";
 import {
   FluffyCloud3D,
@@ -36,6 +37,7 @@ import {
   BOUNCE_MUSHROOMS,
   BUTTERFLY_SPOTS,
   CLOUD_SPOTS,
+  CIRCLE_OBSTACLES,
   CRYSTAL_SPOTS,
   FENCE_SPOTS,
   FLOWER_SPOTS,
@@ -49,6 +51,15 @@ import {
   TREE_SPOTS,
 } from "./worldData";
 
+// Spots the garden's grass tufts stay off: paths, carpet, pond, picnic meadow and everything solid
+const GARDEN_TUFT_CLEAR = [
+  ...CIRCLE_OBSTACLES.map((o) => ({ x: o.x, z: o.z, r: o.r + 0.3 })),
+  ...STEPPING_STONES.map(([x, z]) => ({ x, z, r: 1.0 })),
+  ...Array.from({ length: 11 }, (_, i) => ({ x: 0, z: -6 - i * 1.1, r: 1.7 })),
+  { x: 11.6, z: 11.4, r: 3.9 },
+  { x: -11.5, z: 11.6, r: 3.7 },
+];
+
 function CastleWorldTerrainImpl({
   onGroundClick,
 }: {
@@ -58,10 +69,8 @@ function CastleWorldTerrainImpl({
     <>
       {/* HUGE Chunky Layered Super-Mario-3D-World Grass Island (40×38!) */}
       <group>
-        <mesh position={[0, -0.25, 2.0]} onPointerDown={onGroundClick} receiveShadow>
-          <boxGeometry args={[40, 0.5, 38]} />
-          <meshStandardMaterial color="#4ade80" roughness={0.68} />
-        </mesh>
+        <GrassDeck3D position={[0, -0.25, 2.0]} size={[40, 0.5, 38]} color="#4ade80" onPointerDown={onGroundClick} />
+        <GrassTufts3D minX={-19.4} maxX={19.4} minZ={-16.6} maxZ={20.4} count={700} keepClear={GARDEN_TUFT_CLEAR} seed={11} />
         <mesh position={[0, -1.6, 2.0]}>
           <boxGeometry args={[39.4, 2.2, 37.4]} />
           <meshStandardMaterial color="#d97706" roughness={0.85} />
