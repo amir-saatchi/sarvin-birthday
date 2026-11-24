@@ -19,12 +19,13 @@ export type TintSlot = "tint" | "tint2";
 export type PropPart = {
   geo: THREE.BufferGeometry;
   matrix: THREE.Matrix4;
-  color: string | TintSlot;
+  color: string | TintSlot | THREE.Color;
   shade: number;
   roughness: number;
   metalness: number;
   clearcoat: number;
-  emissive: string | null;
+  clearcoatRoughness: number;
+  emissive: string | THREE.Color | null;
   emissiveIntensity: number;
   /** Gentle scale pulse around the part's own origin (0 = none), e.g. 0.08 for a glowing orb */
   pulse: number;
@@ -71,6 +72,7 @@ export function part(geo: THREE.BufferGeometry, opts: PartOptions): PropPart {
     roughness: opts.roughness ?? 0.5,
     metalness: opts.metalness ?? 0,
     clearcoat: opts.clearcoat ?? 0,
+    clearcoatRoughness: 0.08,
     emissive: opts.emissive ?? null,
     emissiveIntensity: opts.emissiveIntensity ?? 1,
     pulse: opts.pulse ?? 0,
@@ -99,49 +101,50 @@ export function defineProp(make: () => PropPart[]): PropRecipe {
   };
 }
 
-function bakeParts(parts: PropPart[]) {
-  const allIndexed = parts.every((p) => p.geo.index);
+/** Merges parts into one geometry with their look baked into vertex attributes (see getPropMaterial). */
+export function bakeParts(parts: PropPart[]) {
+  // mergeGeometries needs all-indexed or all-non-indexed parts; a non-indexed part in a mixed set
+  // gets a plain 0..n-1 index rather than un-indexing everything else
+  const anyIndexed = parts.some((p) => p.geo.index);
   const c = new THREE.Color();
   const center = new THREE.Vector3();
   const geos = parts.map((p) => {
-    const src = allIndexed || !p.geo.index ? p.geo : p.geo.toNonIndexed();
+    const src = p.geo;
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", src.getAttribute("position").clone());
     g.setAttribute("normal", src.getAttribute("normal").clone());
-    if (allIndexed && src.index) g.setIndex(src.index.clone());
-    g.applyMatrix4(p.matrix);
     const n = g.getAttribute("position").count;
+    if (src.index) g.setIndex(src.index.clone());
+    else if (anyIndexed) {
+      const seq = new Uint32Array(n);
+      for (let i = 0; i < n; i++) seq[i] = i;
+      g.setIndex(new THREE.BufferAttribute(seq, 1));
+    }
+    g.applyMatrix4(p.matrix);
+    // A mirrored transform flips the triangles' winding, so flip it back to keep them front-facing
+    if (p.matrix.determinant() < 0) flipWinding(g);
 
     const isSlot = p.color === "tint" || p.color === "tint2";
     if (isSlot) c.setRGB(p.shade, p.shade, p.shade);
-    else c.set(p.color).multiplyScalar(p.shade);
+    else c.set(p.color as string | THREE.Color).multiplyScalar(p.shade);
     const slot = p.color === "tint" ? 1 : p.color === "tint2" ? 2 : 0;
     const emissive = new THREE.Color(0, 0, 0);
     if (p.emissive) emissive.set(p.emissive).multiplyScalar(p.emissiveIntensity);
     center.setFromMatrixPosition(p.matrix);
 
-    const color = new Float32Array(n * 3);
-    const aSlot = new Float32Array(n);
-    const aPbr = new Float32Array(n * 3);
-    const aEmissive = new Float32Array(n * 3);
-    const aPulse = new Float32Array(n * 4);
-    const aMisc = new Float32Array(n * 2);
-    for (let i = 0; i < n; i++) {
-      color.set([c.r, c.g, c.b], i * 3);
-      aSlot[i] = slot;
-      aPbr.set([p.roughness, p.metalness, p.clearcoat], i * 3);
-      aEmissive.set([emissive.r, emissive.g, emissive.b], i * 3);
-      // w > 0: pulse amount, w < 0: spin speed
-      aPulse.set([center.x, center.y, center.z, p.spin ? -Math.abs(p.spin) : p.pulse], i * 4);
-      aMisc.set([p.bob, p.glowTint], i * 2);
-    }
+    const color = repeated(n, [c.r, c.g, c.b]);
+    const aSlot = repeated(n, [slot]);
+    const aPbr = repeated(n, [p.roughness, p.metalness, p.clearcoat, p.clearcoatRoughness]);
+    const aEmissive = repeated(n, [emissive.r, emissive.g, emissive.b]);
+    // w > 0: pulse amount, w < 0: spin speed
+    const aPulse = repeated(n, [center.x, center.y, center.z, p.spin ? -Math.abs(p.spin) : p.pulse]);
+    const aMisc = repeated(n, [p.bob, p.glowTint]);
     g.setAttribute("color", new THREE.BufferAttribute(color, 3));
     g.setAttribute("aSlot", new THREE.BufferAttribute(aSlot, 1));
-    g.setAttribute("aPbr", new THREE.BufferAttribute(aPbr, 3));
+    g.setAttribute("aPbr", new THREE.BufferAttribute(aPbr, 4));
     g.setAttribute("aEmissive", new THREE.BufferAttribute(aEmissive, 3));
     g.setAttribute("aPulse", new THREE.BufferAttribute(aPulse, 4));
     g.setAttribute("aMisc", new THREE.BufferAttribute(aMisc, 2));
-    if (src !== p.geo) src.dispose();
     return g;
   });
   const merged = mergeGeometries(geos, false);
@@ -151,11 +154,41 @@ function bakeParts(parts: PropPart[]) {
   return merged;
 }
 
+/** One value tuple repeated for each of `n` vertices */
+function repeated(n: number, values: number[]) {
+  const k = values.length;
+  const out = new Float32Array(n * k);
+  for (let i = 0; i < out.length; i += k) for (let j = 0; j < k; j++) out[i + j] = values[j];
+  return out;
+}
+
+function flipWinding(g: THREE.BufferGeometry) {
+  if (g.index) {
+    const idx = g.index;
+    for (let i = 0; i + 2 < idx.count; i += 3) {
+      const b = idx.getX(i + 1);
+      idx.setX(i + 1, idx.getX(i + 2));
+      idx.setX(i + 2, b);
+    }
+    return;
+  }
+  for (const name of ["position", "normal"]) {
+    const a = g.getAttribute(name) as THREE.BufferAttribute;
+    for (let i = 0; i + 2 < a.count; i += 3) {
+      const x = a.getX(i + 1);
+      const y = a.getY(i + 1);
+      const z = a.getZ(i + 1);
+      a.setXYZ(i + 1, a.getX(i + 2), a.getY(i + 2), a.getZ(i + 2));
+      a.setXYZ(i + 2, x, y, z);
+    }
+  }
+}
+
 // One material for every batched prop; the per-part look comes from the baked vertex attributes.
 const propTime = { value: 0 };
 let sharedMaterial: THREE.MeshPhysicalMaterial | null = null;
 
-function getPropMaterial() {
+export function getPropMaterial() {
   if (sharedMaterial) return sharedMaterial;
   const m = new THREE.MeshPhysicalMaterial({ vertexColors: true, clearcoat: 1, clearcoatRoughness: 0.08 });
   m.onBeforeCompile = (shader) => {
@@ -165,14 +198,14 @@ function getPropMaterial() {
         "#include <common>",
         `#include <common>
         attribute float aSlot;
-        attribute vec3 aPbr;
+        attribute vec4 aPbr;
         attribute vec3 aEmissive;
         attribute vec4 aPulse;
         attribute vec2 aMisc;
         attribute vec3 iTint1;
         attribute vec3 iTint2;
         uniform float uPropTime;
-        varying vec3 vPbr;
+        varying vec4 vPbr;
         varying vec3 vEmissive;`
       )
       .replace(
@@ -210,13 +243,17 @@ function getPropMaterial() {
         #endif`
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nvarying vec3 vPbr;\nvarying vec3 vEmissive;")
+      .replace("#include <common>", "#include <common>\nvarying vec4 vPbr;\nvarying vec3 vEmissive;")
       .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = vPbr.x;")
       .replace("#include <metalnessmap_fragment>", "#include <metalnessmap_fragment>\nmetalnessFactor = vPbr.y;")
       .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance = vEmissive;")
       .replace(
         "#include <lights_physical_fragment>",
-        "#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\nmaterial.clearcoat = vPbr.z;\n#endif"
+        `#include <lights_physical_fragment>
+        #ifdef USE_CLEARCOAT
+        material.clearcoat = vPbr.z;
+        material.clearcoatRoughness = min(max(vPbr.w, 0.045) + geometryRoughness, 1.0);
+        #endif`
       );
   };
   sharedMaterial = m;

@@ -4,6 +4,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import type { Vec3 } from "../types";
+import { RAYCAST_ONLY_LAYER, useRaycastOnlyLayer } from "./StaticMerge";
 
 // Lawn look for the green lands: a generated, seamlessly tiling grass texture (soft light/dark
 // patches, blade strokes, a few tiny flowers) on the deck's top face, plus instanced grass tufts
@@ -136,6 +137,8 @@ function useGrassTexture(base: string, sizeX: number, sizeZ: number) {
 }
 
 /** Grass-topped deck box: textured lawn on the top face, plain colour on the sides. */
+const noRaycast = () => {};
+
 export function GrassDeck3D({
   position,
   size,
@@ -149,6 +152,7 @@ export function GrassDeck3D({
 }) {
   const [w, h, d] = size;
   const map = useGrassTexture(color, w, d);
+  useRaycastOnlyLayer();
   const materials = useMemo(() => {
     const side = new THREE.MeshStandardMaterial({ color, roughness: 0.7 });
     const top = new THREE.MeshStandardMaterial({ map, roughness: 0.78 });
@@ -163,10 +167,30 @@ export function GrassDeck3D({
     [materials]
   );
 
+  // Drawn as a textured top plus a plain topless box (two draws instead of one per box face, and
+  // the box merges with its neighbours). The original box stays on the raycast-only layer so
+  // clicks hit exactly what they always did.
+  const sides = useMemo(() => {
+    const g = new THREE.BoxGeometry(w, h, d);
+    const top = g.groups[2];
+    const idx = Array.from(g.index!.array);
+    idx.splice(top.start, top.count);
+    g.setIndex(idx);
+    g.clearGroups();
+    return g;
+  }, [w, h, d]);
+  useEffect(() => () => sides.dispose(), [sides]);
+
   return (
-    <mesh position={position} onPointerDown={onPointerDown} receiveShadow material={materials}>
-      <boxGeometry args={[w, h, d]} />
-    </mesh>
+    <group position={position}>
+      <mesh onPointerDown={onPointerDown} material={materials} layers={RAYCAST_ONLY_LAYER}>
+        <boxGeometry args={[w, h, d]} />
+      </mesh>
+      <mesh geometry={sides} material={materials[0]} raycast={noRaycast} />
+      <mesh position={[0, h / 2, 0]} rotation={[-Math.PI / 2, 0, 0]} material={materials[2]} raycast={noRaycast}>
+        <planeGeometry args={[w, d]} />
+      </mesh>
+    </group>
   );
 }
 

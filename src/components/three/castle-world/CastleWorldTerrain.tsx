@@ -2,6 +2,7 @@
 
 import React from "react";
 import { GrassDeck3D, GrassTufts3D } from "./assets/GrassAssets";
+import { StaticMerge } from "./assets/StaticMerge";
 import {
   BounceMushroomBatch3D,
   CrystalClusterBatch3D,
@@ -100,7 +101,7 @@ function CastleWorldTerrainImpl({
   onGroundClick: (e: ThreeEvent<PointerEvent>) => void;
 }) {
   return (
-    <>
+    <StaticMerge>
       {/* HUGE Chunky Layered Super-Mario-3D-World Grass Island (40×38!) */}
       <group>
         <GrassDeck3D position={[0, -0.25, 2.0]} size={[40, 0.5, 38]} color="#4ade80" onPointerDown={onGroundClick} />
@@ -308,7 +309,7 @@ function CastleWorldTerrainImpl({
           tint={cloud.tint}
         />
       ))}
-    </>
+    </StaticMerge>
   );
 }
 

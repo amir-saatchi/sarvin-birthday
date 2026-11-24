@@ -313,7 +313,8 @@ function PenguinFamily3D() {
         <sphereGeometry args={[1.0, 20, 10]} />
         <meshStandardMaterial color="#f8fafc" roughness={0.6} />
       </mesh>
-      <group ref={rootRef}>
+      {/* Turns only when the player is near: merge its parts under it from the start */}
+      <group ref={rootRef} userData={{ mergeAnchor: true }}>
         <group position={[-0.42, 0.06, -0.15]}>
           <Penguin3D scarf="#38bdf8" scale={1.05} phase={0.4} />
         </group>
