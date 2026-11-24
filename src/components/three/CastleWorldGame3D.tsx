@@ -11,6 +11,7 @@ import { useBirthdayAudio } from "../audio/AudioProvider";
 import { playerWorldPos } from "./castle-world/playerTracker";
 import { CastleWorldScene } from "./castle-world/CastleWorldScene";
 import { WorldWarmup } from "./castle-world/WorldWarmup";
+import { WorldEffects } from "./castle-world/WorldEffects";
 import { HEART_TRAIL, STAR_SPOTS } from "./castle-world/worldData";
 
 export function CastleWorldGame3D() {
@@ -171,6 +172,7 @@ export function CastleWorldGame3D() {
             onTriggerMessage={showToast}
           />
           <WorldWarmup onReady={() => setWorldReady(true)} />
+          {worldReady && <WorldEffects />}
         </Canvas>
 
         {!worldReady && (
