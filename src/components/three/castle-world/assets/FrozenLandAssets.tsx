@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useMemo, useRef } from "react";
+import React, { Suspense, useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { Sparkles, useGLTF } from "@react-three/drei";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
@@ -13,11 +13,12 @@ import {
   FROZEN_GAZEBO_POS,
   FROZEN_LANTERN_SPOTS,
   FROZEN_OLAF_POS,
-  FROZEN_PINE_SPOTS,
   FROZEN_SKATING_POND_POS,
+  FROZEN_SKATING_POND_R,
   FROZEN_SNOWMAN_POS,
 } from "../worldData";
 import { CrystalCluster3D } from "./WorldLandmarkAssets";
+import { FrozenExpansion3D } from "./FrozenFriendsAssets";
 
 // Sparkling icy-blue & silver crystal archway framing the West bridge entrance
 export function IceArchway3D({
@@ -238,61 +239,6 @@ export function FrozenPineTree3D({
         <meshStandardMaterial color="#ffffff" roughness={0.38} />
       </mesh>
     </group>
-  );
-}
-
-// Low-poly snowy pines from the winter forest pack (Draco GLB, ~43 KB, origins at trunk base)
-const WINTER_MODEL_URL = "/models/winter.glb";
-export type WinterPineVariant = "tree_chr_big" | "tree_chr_small" | "tree_big_snow";
-// Height in world units at scale 1 (the old primitive pine was ~3.6 tall)
-const WINTER_PINE_HEIGHT = 3.9;
-
-function WinterPineModel3D({
-  position,
-  variant,
-  scale = 1,
-  rotationY = 0,
-}: {
-  position: Vec3;
-  variant: WinterPineVariant;
-  scale?: number;
-  rotationY?: number;
-}) {
-  const { nodes } = useGLTF(WINTER_MODEL_URL);
-  const mesh = nodes[variant] as THREE.Mesh | undefined;
-  const fit = useMemo(() => {
-    if (!mesh) return 1;
-    mesh.geometry.computeBoundingBox();
-    const h = mesh.geometry.boundingBox!.max.y - mesh.geometry.boundingBox!.min.y;
-    return WINTER_PINE_HEIGHT / Math.max(h, 0.001);
-  }, [mesh]);
-  if (!mesh) return null;
-  return (
-    <mesh
-      position={position}
-      rotation={[0, rotationY, 0]}
-      scale={fit * scale}
-      geometry={mesh.geometry}
-      material={mesh.material}
-      castShadow
-      dispose={null}
-    />
-  );
-}
-useGLTF.preload(WINTER_MODEL_URL);
-
-/** Snowy low-poly pine model, with the pastel primitive pine shown while it loads. */
-export function WinterPine3D(props: {
-  position: Vec3;
-  variant: WinterPineVariant;
-  color?: string;
-  scale?: number;
-  rotationY?: number;
-}) {
-  return (
-    <Suspense fallback={<FrozenPineTree3D position={props.position} color={props.color} scale={props.scale} />}>
-      <WinterPineModel3D {...props} />
-    </Suspense>
   );
 }
 
@@ -775,51 +721,93 @@ export function IceLantern3D({ position }: { position: Vec3 }) {
   );
 }
 
-// Snowy / ice crystal perimeter fence row closing Frozen Land cleanly
-function IceFenceRow3D({
-  position,
-  length,
-  rotationY = 0,
-}: {
-  position: Vec3;
-  length: number;
-  rotationY?: number;
-}) {
-  const posts = useMemo(() => {
-    const count = Math.max(2, Math.round(length / 1.45) + 1);
-    return Array.from({ length: count }, (_, i) => (i / (count - 1) - 0.5) * length);
-  }, [length]);
+// Snowy / ice crystal perimeter fences closing Frozen Land (all rows instanced: 4 draw calls in total)
+type FenceRow = { from: [number, number]; to: [number, number] };
+const FROZEN_FENCE_ROWS: FenceRow[] = [
+  { from: [-66.9, -20.4], to: [-28.1, -20.4] }, // north
+  { from: [-66.9, 24.4], to: [-28.1, 24.4] }, // south
+  { from: [-66.9, -20.4], to: [-66.9, -9.4] }, // west, north of the waterfall cliff
+  { from: [-66.9, 10.2], to: [-66.9, 24.4] }, // west, south of the ice cave
+  { from: [-28.1, -20.4], to: [-28.1, -0.8] }, // east, north of the bridge opening
+  { from: [-28.1, 4.8], to: [-28.1, 24.4] }, // east, south of the bridge opening
+];
+
+function IceFences3D() {
+  const postRef = useRef<THREE.InstancedMesh>(null);
+  const capRef = useRef<THREE.InstancedMesh>(null);
+  const railHiRef = useRef<THREE.InstancedMesh>(null);
+  const railLoRef = useRef<THREE.InstancedMesh>(null);
+
+  const { posts, rails } = useMemo(() => {
+    const posts: [number, number][] = [];
+    const rails: { x: number; z: number; len: number; yaw: number }[] = [];
+    for (const { from, to } of FROZEN_FENCE_ROWS) {
+      const len = Math.hypot(to[0] - from[0], to[1] - from[1]);
+      const count = Math.max(2, Math.round(len / 1.45) + 1);
+      for (let i = 0; i < count; i++) {
+        const f = i / (count - 1);
+        posts.push([from[0] + (to[0] - from[0]) * f, from[1] + (to[1] - from[1]) * f]);
+      }
+      rails.push({
+        x: (from[0] + to[0]) / 2,
+        z: (from[1] + to[1]) / 2,
+        len: len + 0.14,
+        yaw: -Math.atan2(to[1] - from[1], to[0] - from[0]),
+      });
+    }
+    return { posts, rails };
+  }, []);
+
+  useLayoutEffect(() => {
+    const o = new THREE.Object3D();
+    const place = (mesh: THREE.InstancedMesh | null, n: number, set: (i: number) => void) => {
+      if (!mesh) return;
+      for (let i = 0; i < n; i++) {
+        o.position.set(0, 0, 0);
+        o.rotation.set(0, 0, 0);
+        o.scale.set(1, 1, 1);
+        set(i);
+        o.updateMatrix();
+        mesh.setMatrixAt(i, o.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.computeBoundingSphere();
+    };
+    place(postRef.current, posts.length, (i) => o.position.set(posts[i][0], 0.4, posts[i][1]));
+    place(capRef.current, posts.length, (i) => o.position.set(posts[i][0], 0.86, posts[i][1]));
+    const railAt = (y: number) => (i: number) => {
+      o.position.set(rails[i].x, y, rails[i].z);
+      o.rotation.set(0, rails[i].yaw, 0);
+      o.scale.set(rails[i].len, 1, 1);
+    };
+    place(railHiRef.current, rails.length, railAt(0.56));
+    place(railLoRef.current, rails.length, railAt(0.28));
+  }, [posts, rails]);
 
   return (
-    <group position={position} rotation={[0, rotationY, 0]}>
-      {/* Ice-crystal horizontal rails */}
-      <mesh position={[0, 0.56, 0]}>
-        <boxGeometry args={[length + 0.14, 0.1, 0.1]} />
+    <group>
+      <instancedMesh ref={railHiRef} args={[undefined, undefined, rails.length]}>
+        <boxGeometry args={[1, 0.1, 0.1]} />
         <meshPhysicalMaterial color="#bae6fd" roughness={0.22} clearcoat={0.75} />
-      </mesh>
-      <mesh position={[0, 0.28, 0]}>
-        <boxGeometry args={[length + 0.14, 0.09, 0.09]} />
+      </instancedMesh>
+      <instancedMesh ref={railLoRef} args={[undefined, undefined, rails.length]}>
+        <boxGeometry args={[1, 0.09, 0.09]} />
         <meshStandardMaterial color="#e2e8f0" metalness={0.45} roughness={0.25} />
-      </mesh>
-      {/* Crystal fence posts with snowy caps */}
-      {posts.map((px, idx) => (
-        <group key={`ifpost-${idx}`} position={[px, 0, 0]}>
-          <mesh position={[0, 0.4, 0]}>
-            <cylinderGeometry args={[0.09, 0.11, 0.8, 6]} />
-            <meshPhysicalMaterial color="#f0f9ff" roughness={0.22} clearcoat={0.7} />
-          </mesh>
-          <mesh position={[0, 0.86, 0]}>
-            <coneGeometry args={[0.11, 0.18, 6]} />
-            <meshPhysicalMaterial
-              color="#7dd3fc"
-              emissive="#38bdf8"
-              emissiveIntensity={0.45}
-              roughness={0.15}
-              clearcoat={0.95}
-            />
-          </mesh>
-        </group>
-      ))}
+      </instancedMesh>
+      <instancedMesh ref={postRef} args={[undefined, undefined, posts.length]}>
+        <cylinderGeometry args={[0.09, 0.11, 0.8, 6]} />
+        <meshPhysicalMaterial color="#f0f9ff" roughness={0.22} clearcoat={0.7} />
+      </instancedMesh>
+      <instancedMesh ref={capRef} args={[undefined, undefined, posts.length]}>
+        <coneGeometry args={[0.11, 0.18, 6]} />
+        <meshPhysicalMaterial
+          color="#7dd3fc"
+          emissive="#38bdf8"
+          emissiveIntensity={0.45}
+          roughness={0.15}
+          clearcoat={0.95}
+        />
+      </instancedMesh>
     </group>
   );
 }
@@ -930,54 +918,57 @@ function IcePalaceGazebo3D({ position }: { position: Vec3 }) {
   );
 }
 
-// Floating 28 × 30 Snowy Frozen Land Island (x ∈ [-55.5, -27.5], z ∈ [-13.0, 17.0], centered at [-41.5, 0, 2.0])
+// Floating 40 × 46 Snowy Frozen Land Island (x ∈ [-67.5, -27.5], z ∈ [-21.0, 25.0], centred on [-47.5, 0, 2.0])
 export function FrozenLandPlatform3D({
   onGroundClick,
 }: {
   onGroundClick: (e: ThreeEvent<PointerEvent>) => void;
 }) {
   const cloudPuffs: [number, number, number, number][] = [
-    [-54.5, -2.5, -11.5, 2.7],
-    [-28.5, -2.5, -11.5, 2.5],
-    [-54.8, -2.6, 2.0, 3.0],
-    [-54.5, -2.5, 15.5, 2.7],
-    [-28.5, -2.5, 15.5, 2.5],
-    [-41.5, -3.0, -12.8, 3.2],
-    [-41.5, -3.0, 16.8, 3.2],
-    [-48.0, -2.9, 16.0, 2.6],
-    [-35.0, -2.9, -12.0, 2.6],
+    [-66.5, -2.5, -19.5, 2.8],
+    [-28.5, -2.5, -19.5, 2.6],
+    [-66.8, -2.6, 2.0, 3.2],
+    [-66.5, -2.5, 23.5, 2.8],
+    [-28.5, -2.5, 23.5, 2.6],
+    [-47.5, -3.0, -20.8, 3.4],
+    [-47.5, -3.0, 24.8, 3.4],
+    [-37.0, -2.9, -20.4, 2.8],
+    [-58.0, -2.9, -20.4, 2.8],
+    [-37.0, -2.9, 24.4, 2.8],
+    [-58.0, -2.9, 24.4, 2.8],
+    [-28.4, -2.8, -9.0, 2.6],
+    [-28.4, -2.8, 13.0, 2.6],
+    [-66.8, -2.8, -9.5, 2.7],
+    [-66.8, -2.8, 13.5, 2.7],
   ];
 
   const pondRimStones = useMemo(() => {
-    const count = 18;
+    const count = 28;
+    const r = FROZEN_SKATING_POND_R + 0.08;
     return Array.from({ length: count }, (_, i) => {
       const a = (i / count) * Math.PI * 2;
-      return {
-        x: Math.cos(a) * 4.25,
-        z: Math.sin(a) * 4.25,
-        rotY: a,
-        scale: 0.8 + (i % 3) * 0.18,
-      };
+      return { x: Math.cos(a) * r, z: Math.sin(a) * r, rotY: a, scale: 0.8 + (i % 3) * 0.18 };
     });
   }, []);
 
-  const icePathTiles = [-29.2, -31.8, -34.4, -37.0, -39.6, -42.2, -44.8];
+  // Bridge arrival → Ice Palace Gazebo → on west to the fork for the waterfall & the ice cave
+  const icePathTiles = [-29.2, -31.8, -34.4, -37.0, -39.6, -42.2, -44.8, -53.2, -55.8, -58.4];
 
   return (
     <group>
-      {/* === CRISP SNOWY TOP DECK (28 × 30, exact x ∈ [-55.5, -27.5], z ∈ [-13.0, 17.0], top at y = 0) === */}
-      <mesh position={[-41.5, -0.25, 2.0]} onPointerDown={onGroundClick} receiveShadow>
-        <boxGeometry args={[28, 0.5, 30]} />
+      {/* === CRISP SNOWY TOP DECK (40 × 46, exact x ∈ [-67.5, -27.5], z ∈ [-21.0, 25.0], top at y = 0) === */}
+      <mesh position={[-47.5, -0.25, 2.0]} onPointerDown={onGroundClick} receiveShadow>
+        <boxGeometry args={[40, 0.5, 46]} />
         <meshPhysicalMaterial color="#f0f9ff" roughness={0.42} clearcoat={0.28} />
       </mesh>
 
       {/* Chunky Glacier-Blue & Icy-Indigo Floating Cliff Underside */}
-      <mesh position={[-41.5, -1.55, 2.0]}>
-        <boxGeometry args={[27.2, 2.1, 29.2]} />
+      <mesh position={[-47.5, -1.55, 2.0]}>
+        <boxGeometry args={[39.2, 2.1, 45.2]} />
         <meshStandardMaterial color="#7dd3fc" roughness={0.62} />
       </mesh>
-      <mesh position={[-41.5, -3.05, 2.0]}>
-        <boxGeometry args={[25.8, 0.9, 27.8]} />
+      <mesh position={[-47.5, -3.05, 2.0]}>
+        <boxGeometry args={[37.8, 0.9, 43.8]} />
         <meshStandardMaterial color="#6366f1" roughness={0.72} />
       </mesh>
 
@@ -985,14 +976,11 @@ export function FrozenLandPlatform3D({
       {cloudPuffs.map(([cx, cy, cz, cr], idx) => (
         <mesh key={`fcloud-${idx}`} position={[cx, cy, cz]} scale={[1.35, 0.62, 1.25]}>
           <sphereGeometry args={[cr, 16, 16]} />
-          <meshStandardMaterial
-            color={idx % 2 === 0 ? "#ffffff" : "#e0f2fe"}
-            roughness={0.55}
-          />
+          <meshStandardMaterial color={idx % 2 === 0 ? "#ffffff" : "#e0f2fe"} roughness={0.55} />
         </mesh>
       ))}
 
-      {/* Frosty Crystal Path Tiles from Bridge Arrival to Ice Palace Gazebo */}
+      {/* Frosty Crystal Path Tiles along the snowy avenue */}
       {icePathTiles.map((tx, idx) => (
         <mesh key={`ipath-${idx}`} position={[tx, 0.02, 2.0]} onPointerDown={onGroundClick}>
           <cylinderGeometry args={[0.92, 0.98, 0.05, 6]} />
@@ -1004,10 +992,10 @@ export function FrozenLandPlatform3D({
         </mesh>
       ))}
 
-      {/* === SHIMMERING FROZEN SKATING POND ([-39.5, 0.015, 7.5], clickable!) === */}
+      {/* === BIG SHIMMERING SKATING POND (walkable: the unicorn glides on the ice) === */}
       <group position={FROZEN_SKATING_POND_POS}>
         <mesh rotation={[-Math.PI / 2, 0, 0]} onPointerDown={onGroundClick}>
-          <circleGeometry args={[4.2, 36]} />
+          <circleGeometry args={[FROZEN_SKATING_POND_R, 48]} />
           <meshPhysicalMaterial
             color="#bae6fd"
             emissive="#38bdf8"
@@ -1017,24 +1005,28 @@ export function FrozenLandPlatform3D({
             clearcoatRoughness={0.06}
           />
         </mesh>
-        {/* Subtle frost skate swirl rings */}
+        {/* Frost skate swirl rings */}
         <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[2.3, 2.42, 32]} />
+          <ringGeometry args={[3.62, 3.76, 48]} />
           <meshStandardMaterial color="#ffffff" transparent opacity={0.48} />
         </mesh>
-        <mesh position={[0.6, 0.007, -0.5]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[1.1, 1.2, 28]} />
+        <mesh position={[0, 0.007, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[2.04, 2.16, 36]} />
           <meshStandardMaterial color="#e0f2fe" transparent opacity={0.45} />
+        </mesh>
+        <mesh position={[1.2, 0.008, -1.0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.8, 0.88, 24]} />
+          <meshStandardMaterial color="#ffffff" transparent opacity={0.4} />
         </mesh>
         {/* Pastel Crystal Rim Stones */}
         {pondRimStones.map((stone, idx) => (
           <mesh
             key={`prim-${idx}`}
-            position={[stone.x, 0.14, stone.z]}
+            position={[stone.x, 0.12, stone.z]}
             rotation={[0.15, stone.rotY, 0.1]}
             scale={stone.scale}
           >
-            <dodecahedronGeometry args={[0.3, 0]} />
+            <dodecahedronGeometry args={[0.26, 0]} />
             <meshPhysicalMaterial
               color={idx % 2 === 0 ? "#e0f2fe" : "#ddd6fe"}
               roughness={0.18}
@@ -1047,31 +1039,13 @@ export function FrozenLandPlatform3D({
       {/* === SPARKLING ICE PALACE GAZEBO ([-49.5, 0, 2.0]) === */}
       <IcePalaceGazebo3D position={FROZEN_GAZEBO_POS} />
 
-      {/* === PERIMETER SNOWY / ICE CRYSTAL FENCES (closing all 4 corners cleanly, east bridge opening z ∈ [-0.8, 4.8]) === */}
-      {/* West Edge (x = -54.9, z ∈ [-12.4, 16.4]) */}
-      <IceFenceRow3D position={[-54.9, 0, 2.0]} length={28.8} rotationY={Math.PI / 2} />
-      {/* North Edge (z = -12.4, x ∈ [-54.9, -28.1]) */}
-      <IceFenceRow3D position={[-41.5, 0, -12.4]} length={26.8} />
-      {/* South Edge (z = 16.4, x ∈ [-54.9, -28.1]) */}
-      <IceFenceRow3D position={[-41.5, 0, 16.4]} length={26.8} />
-      {/* East Edge North Segment (x = -28.1, z ∈ [-12.4, -0.8]) */}
-      <IceFenceRow3D position={[-28.1, 0, -6.6]} length={11.6} rotationY={Math.PI / 2} />
-      {/* East Edge South Segment (x = -28.1, z ∈ [4.8, 16.4]) */}
-      <IceFenceRow3D position={[-28.1, 0, 10.6]} length={11.6} rotationY={Math.PI / 2} />
+      {/* === PERIMETER SNOWY / ICE CRYSTAL FENCES (east bridge opening z ∈ [-0.8, 4.8]; cliff & cave close the west) === */}
+      <IceFences3D />
 
-      {/* === FROZEN PINE TREES === */}
-      {FROZEN_PINE_SPOTS.map((tree, idx) => (
-        <WinterPine3D
-          key={`fpine-${idx}`}
-          position={tree.pos}
-          variant={idx === 2 || idx === 6 ? "tree_big_snow" : idx % 2 === 0 ? "tree_chr_big" : "tree_chr_small"}
-          color={tree.color}
-          scale={tree.scale}
-          rotationY={idx * 1.7}
-        />
-      ))}
+      {/* === SLIDE, IGLOOS, PENGUINS, WATERFALL, ICE CAVE, DEN, BUNNIES, PINES & WINTER PROPS === */}
+      <FrozenExpansion3D onGroundClick={onGroundClick} />
 
-      {/* === KAWAII SNOWMAN (waving near the skating pond!) === */}
+      {/* === KAWAII SNOWMAN (waving by the skating pond!) === */}
       <KawaiiSnowman3D position={FROZEN_SNOWMAN_POS} rotation={[0, -0.95, 0]} scale={1.15} />
 
       {/* === OLAF CHARACTER (cheering along the snowy avenue!) === */}
@@ -1089,9 +1063,9 @@ export function FrozenLandPlatform3D({
 
       {/* === SNOWY MAGICAL SPARKLES === */}
       <Sparkles
-        count={75}
-        position={[-41.5, 3.6, 2.0]}
-        scale={[26, 7.5, 28]}
+        count={110}
+        position={[-47.5, 3.6, 2.0]}
+        scale={[38, 7.5, 44]}
         size={4.6}
         speed={0.35}
         color="#e0f2fe"

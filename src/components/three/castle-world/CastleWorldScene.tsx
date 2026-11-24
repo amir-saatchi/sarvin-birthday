@@ -31,15 +31,41 @@ import {
   DINO_BRONTO_POS,
   DINO_SKELETON_POS,
   DINO_TRICERATOPS_POS,
+  FROZEN_CARROT_PATCH_POS,
+  FROZEN_CAVE,
+  FROZEN_IGLOOS,
   FROZEN_OLAF_POS,
+  FROZEN_PENGUIN_FAMILY_POS,
+  FROZEN_SKATE_SPEED,
+  FROZEN_SKATING_POND_POS,
+  FROZEN_SKATING_POND_R,
+  FROZEN_SLIDE_PAD,
+  FROZEN_SLIDE_PAD_TRIGGER_R,
+  FROZEN_SLIDE_POS,
+  FROZEN_SNOW_DEN_POS,
   FROZEN_SNOWMAN_POS,
+  FROZEN_WATERFALL_POOL_POS,
   HEART_TRAIL,
   KUROMI_HOST_POS,
+  KUROMI_MOON_SWING_POS,
+  KUROMI_RINK_POS,
+  KUROMI_RINK_R,
+  KUROMI_STAR_PADS,
   MELODY_HOST_POS,
+  MELODY_JELLY_PADS,
+  MELODY_STRAWBERRY_GARDEN_POS,
+  MELODY_STRAWBERRY_GARDEN_R,
+  MELODY_TEACUPS_POS,
+  MELODY_TEACUPS_R,
+  MELODY_WHEEL_PAD,
+  MELODY_WHEEL_PAD_TRIGGER_R,
+  MELODY_WHEEL_POS,
   PLAYER_START_POS,
   STAR_SPOTS,
 } from "./worldData";
 import { playerWorldPos } from "./playerTracker";
+import { SLIDE_RIDE_DURATION, slideRidePose } from "./frozenSlideRide";
+import { WHEEL_RIDE_DURATION, wheelGondolaToBoard, wheelRidePose } from "./melodyWheelRide";
 
 // true: the camera swings round behind the unicorn as she turns. false: fixed north-facing camera.
 const CAMERA_FOLLOWS_FACING = true;
@@ -83,6 +109,12 @@ export function CastleWorldScene({
   const inMelodyLandRef = useRef(false);
   const inCastleRef = useRef(false);
   const blockedTimerRef = useRef(0);
+  // Ice Slide ride: start time (performance.now ms) while riding, and when the lift pad works again
+  const rideStartRef = useRef<number | null>(null);
+  const rideCooldownUntilRef = useRef(0);
+  // Ferris Wheel ride (My Melody Land): clock time it started and the gondola she rides, and when the pad works again
+  const wheelRideRef = useRef<{ start: number; gondola: number } | null>(null);
+  const wheelCooldownUntilRef = useRef(0);
 
   useEffect(() => {
     const keys = keysRef.current;
@@ -126,8 +158,12 @@ export function CastleWorldScene({
     e.stopPropagation();
     // A tap on the fountain/tree/tower lands inside its collision circle: move the target to the
     // obstacle's edge so the unicorn can actually arrive instead of circling it forever.
-    const outside = pushPointOutOfCircleObstacles(e.point.x, e.point.z);
-    const clamped = clampToWalkableZones(outside.x, outside.z);
+    // Twice: a tap past an obstacle at the island's edge can be pushed off the island, then clamped back onto it
+    let clamped = { x: e.point.x, z: e.point.z };
+    for (let pass = 0; pass < 2; pass++) {
+      const outside = pushPointOutOfCircleObstacles(clamped.x, clamped.z);
+      clamped = clampToWalkableZones(outside.x, outside.z);
+    }
     const surfaceY = getSurfaceHeightAt(clamped.x, clamped.z);
     targetPosRef.current = new THREE.Vector3(clamped.x, surfaceY, clamped.z);
     blockedTimerRef.current = 0;
@@ -140,7 +176,17 @@ export function CastleWorldScene({
     playerWorldPos.copy(pos);
     const prevX = pos.x;
     const prevZ = pos.z;
-    const speed = 6.8;
+    const now = performance.now();
+    const rideStart = rideStartRef.current;
+    const wheelRide = wheelRideRef.current;
+    const riding = rideStart !== null || wheelRide !== null;
+    // On the skating pond (and Kuromi's skate rink) she glides a little faster, without trotting
+    const onIce =
+      !riding &&
+      pos.y < 0.2 &&
+      (Math.hypot(pos.x - FROZEN_SKATING_POND_POS[0], pos.z - FROZEN_SKATING_POND_POS[2]) < FROZEN_SKATING_POND_R ||
+        Math.hypot(pos.x - KUROMI_RINK_POS[0], pos.z - KUROMI_RINK_POS[2]) < KUROMI_RINK_R);
+    const speed = 6.8 * (onIce ? FROZEN_SKATE_SPEED : 1);
     let moved = false;
     // Distance the tap-to-move steering asked for this frame (frame-rate independent blocked check)
     let expectedMove = 0;
@@ -157,12 +203,40 @@ export function CastleWorldScene({
     const isGrounded = pos.y <= currentFloorY + 0.04 && jumpVelRef.current <= 0;
 
     // Optional keyboard Spacebar jump
-    if (keys["Space"] && isGrounded) {
+    if (keys["Space"] && isGrounded && !riding) {
       jumpVelRef.current = 6.8;
       playPopSound(1.35);
     }
 
-    if (kx !== 0 || kz !== 0) {
+    if (wheelRide) {
+      // Ferris Wheel ride: hop into a gondola, go once round with the wheel, hop out (follows the wheel's clock)
+      const elapsed = state.clock.elapsedTime - wheelRide.start;
+      const yaw = wheelRidePose(Math.min(elapsed, WHEEL_RIDE_DURATION), wheelRide.start, wheelRide.gondola, pos);
+      const diff = Math.atan2(Math.sin(yaw - playerYawRef.current), Math.cos(yaw - playerYawRef.current));
+      playerYawRef.current += diff * Math.min(1, dt * 8);
+      moved = true;
+      if (elapsed >= WHEEL_RIDE_DURATION) {
+        wheelRideRef.current = null;
+        wheelCooldownUntilRef.current = now + 1200;
+        pos.y = 0;
+        jumpVelRef.current = 0;
+      }
+    } else if (rideStart !== null) {
+      // Ice Slide ride: the path is scripted (lift, glide onto the tower, whoosh down the spiral, coast out)
+      const elapsed = (now - rideStart) / 1000;
+      const yaw = slideRidePose(Math.min(elapsed, SLIDE_RIDE_DURATION), pos);
+      if (yaw !== null) {
+        const diff = Math.atan2(Math.sin(yaw - playerYawRef.current), Math.cos(yaw - playerYawRef.current));
+        playerYawRef.current += diff * Math.min(1, dt * 14);
+      }
+      moved = true;
+      if (elapsed >= SLIDE_RIDE_DURATION) {
+        rideStartRef.current = null;
+        rideCooldownUntilRef.current = now + 1200;
+        pos.y = 0;
+        jumpVelRef.current = 0;
+      }
+    } else if (kx !== 0 || kz !== 0) {
       targetPosRef.current = null;
       blockedTimerRef.current = 0;
       const len = Math.hypot(kx, kz);
@@ -215,11 +289,9 @@ export function CastleWorldScene({
       }
     }
 
-    const { hitTerraceWall, shouldAutoHopTerrace } = resolvePlayerCollisions(
-      pos,
-      targetPosRef.current,
-      isGrounded
-    );
+    const { hitTerraceWall, shouldAutoHopTerrace } = riding
+      ? { hitTerraceWall: false, shouldAutoHopTerrace: false }
+      : resolvePlayerCollisions(pos, targetPosRef.current, isGrounded);
 
     if (shouldAutoHopTerrace) {
       jumpVelRef.current = 6.9;
@@ -244,7 +316,9 @@ export function CastleWorldScene({
 
     // Vertical physics: smooth ramp ascent/descent, gravity, landing on raised terraces/upper castle
     const floorAfterMove = getWalkableFloorHeight(pos.x, pos.z, pos.y);
-    if (jumpVelRef.current > 0 || pos.y > floorAfterMove + 0.18) {
+    if (riding) {
+      // height comes from the ride
+    } else if (jumpVelRef.current > 0 || pos.y > floorAfterMove + 0.18) {
       pos.y += jumpVelRef.current * dt;
       jumpVelRef.current -= 17 * dt;
       const landingFloor = getWalkableFloorHeight(pos.x, pos.z, pos.y);
@@ -257,9 +331,40 @@ export function CastleWorldScene({
       jumpVelRef.current = 0;
     }
 
-    const now = performance.now();
-    for (const [mx, , mz] of [...BOUNCE_MUSHROOMS, ...DINO_BOUNCE_EGGS]) {
+    // Step on the glowing snowflake pad to ride the Ice Slide
+    if (
+      !riding &&
+      rideStartRef.current === null &&
+      now > rideCooldownUntilRef.current &&
+      pos.y < 0.2 &&
+      Math.hypot(pos.x - FROZEN_SLIDE_PAD[0], pos.z - FROZEN_SLIDE_PAD[2]) < FROZEN_SLIDE_PAD_TRIGGER_R
+    ) {
+      rideStartRef.current = now;
+      targetPosRef.current = null;
+      blockedTimerRef.current = 0;
+      jumpVelRef.current = 0;
+      playSparkleSound();
+    }
+
+    // Step on the glowing heart pad to ride My Melody's Ferris Wheel
+    if (
+      !riding &&
+      wheelRideRef.current === null &&
+      now > wheelCooldownUntilRef.current &&
+      pos.y < 0.2 &&
+      Math.hypot(pos.x - MELODY_WHEEL_PAD[0], pos.z - MELODY_WHEEL_PAD[2]) < MELODY_WHEEL_PAD_TRIGGER_R
+    ) {
+      const clock = state.clock.elapsedTime;
+      wheelRideRef.current = { start: clock, gondola: wheelGondolaToBoard(clock) };
+      targetPosRef.current = null;
+      blockedTimerRef.current = 0;
+      jumpVelRef.current = 0;
+      playSparkleSound();
+    }
+
+    for (const [mx, , mz] of [...BOUNCE_MUSHROOMS, ...DINO_BOUNCE_EGGS, ...MELODY_JELLY_PADS, ...KUROMI_STAR_PADS]) {
       if (
+        !riding &&
         Math.hypot(pos.x - mx, pos.z - mz) < 0.95 &&
         pos.y < 0.2 &&
         now - lastBounceRef.current > 650
@@ -273,9 +378,13 @@ export function CastleWorldScene({
     const onGroundNow = Math.abs(pos.y - floorAfterMove) < 0.04 && jumpVelRef.current === 0;
     if (playerGroupRef.current) {
       const trotHop =
-        moved && onGroundNow ? Math.abs(Math.sin(state.clock.elapsedTime * 12)) * 0.22 : 0;
+        moved && onGroundNow && !onIce && !riding
+          ? Math.abs(Math.sin(state.clock.elapsedTime * 12)) * 0.22
+          : 0;
       playerGroupRef.current.position.set(pos.x, pos.y + trotHop + 0.16, pos.z);
       playerGroupRef.current.rotation.y = playerYawRef.current;
+      // Skating: a gentle side-to-side sway as she glides
+      playerGroupRef.current.rotation.z = onIce && moved ? Math.sin(state.clock.elapsedTime * 3.2) * 0.12 : 0;
     }
 
     const fDist = Math.hypot(pos.x - 0, pos.z - 3.6);
@@ -286,8 +395,13 @@ export function CastleWorldScene({
       }
     });
 
-    HEART_TRAIL.forEach(([hx, , hz], idx) => {
-      if (!collectedHearts[idx] && Math.hypot(pos.x - hx, pos.z - hz) < 1.15) {
+    HEART_TRAIL.forEach(([hx, hy, hz], idx) => {
+      // While riding the slide, only hearts at her height count (the spiral passes over the same spot twice)
+      if (
+        !collectedHearts[idx] &&
+        Math.hypot(pos.x - hx, pos.z - hz) < 1.15 &&
+        (!riding || Math.abs(pos.y + 0.72 - hy) < 1.3)
+      ) {
         onCollectHeart(idx);
       }
     });
@@ -361,6 +475,20 @@ export function CastleWorldScene({
       triggerOnEnter("melodyHost", t.castleWorld.melodyHostMsg);
     } else if (kuromiHostDist < 2.4) {
       triggerOnEnter("kuromiHost", t.castleWorld.kuromiHostMsg);
+    } else if (wheelRide !== null || nearXZ(MELODY_WHEEL_POS, 5.2)) {
+      triggerOnEnter("melodyWheel", t.castleWorld.melodyWheelMsg);
+    } else if (nearXZ(MELODY_STRAWBERRY_GARDEN_POS, MELODY_STRAWBERRY_GARDEN_R + 1.6)) {
+      triggerOnEnter("strawberries", t.castleWorld.melodyStrawberryMsg);
+    } else if (nearXZ(MELODY_TEACUPS_POS, MELODY_TEACUPS_R + 1.5)) {
+      triggerOnEnter("teacups", t.castleWorld.melodyTeacupMsg);
+    } else if (nearXZ(KUROMI_MOON_SWING_POS, 3.6)) {
+      triggerOnEnter("moonSwing", t.castleWorld.kuromiMoonMsg);
+    } else if (nearXZ(KUROMI_RINK_POS, KUROMI_RINK_R)) {
+      triggerOnEnter("kuromiRink", t.castleWorld.kuromiSkateMsg);
+    } else if (MELODY_JELLY_PADS.some((p) => nearXZ(p, 1.6))) {
+      triggerOnEnter("jellyPads", t.castleWorld.melodyJellyMsg);
+    } else if (KUROMI_STAR_PADS.some((p) => nearXZ(p, 1.6))) {
+      triggerOnEnter("starPads", t.castleWorld.kuromiStarPadMsg);
     } else if (brontoDist < 2.8) {
       triggerOnEnter("bronto", t.castleWorld.brontoMsg);
     } else if (nearXZ(DINO_TRICERATOPS_POS, 3.6)) {
@@ -375,6 +503,22 @@ export function CastleWorldScene({
       triggerOnEnter("olaf", t.castleWorld.olafMsg);
     } else if (snowmanDist < 2.4) {
       triggerOnEnter("snowman", t.castleWorld.snowmanMsg);
+    } else if (rideStart !== null || nearXZ(FROZEN_SLIDE_POS, 4.4)) {
+      triggerOnEnter("iceSlide", t.castleWorld.iceSlideMsg);
+    } else if (nearXZ(FROZEN_PENGUIN_FAMILY_POS, 2.8)) {
+      triggerOnEnter("penguins", t.castleWorld.penguinMsg);
+    } else if (FROZEN_IGLOOS.some((ig) => nearXZ(ig.pos, ig.r + 1.6))) {
+      triggerOnEnter("igloo", t.castleWorld.iglooMsg);
+    } else if (pos.x < FROZEN_CAVE.maxX + 0.4 && pos.z > FROZEN_CAVE.minZ && pos.z < FROZEN_CAVE.maxZ) {
+      triggerOnEnter("iceCave", t.castleWorld.iceCaveMsg);
+    } else if (nearXZ(FROZEN_WATERFALL_POOL_POS, 2.9)) {
+      triggerOnEnter("waterfall", t.castleWorld.waterfallMsg);
+    } else if (nearXZ(FROZEN_CARROT_PATCH_POS, 3.2)) {
+      triggerOnEnter("bunnies", t.castleWorld.snowBunnyMsg);
+    } else if (nearXZ(FROZEN_SNOW_DEN_POS, 4.0)) {
+      triggerOnEnter("snowDen", t.castleWorld.snowDenMsg);
+    } else if (onIce) {
+      triggerOnEnter("skating", t.castleWorld.skatingMsg);
     } else if (nearXZ(CASTLE_CAKE_POS, 3.4)) {
       triggerOnEnter("cake", t.castleWorld.castleCakeMsg);
     } else if (nearXZ(CASTLE_CAROUSEL_POS, 4.2)) {
@@ -399,7 +543,20 @@ export function CastleWorldScene({
     // Smooth 3rd-person chase camera: sits behind the unicorn and slowly swings round to follow its facing.
     // It only follows while she's moving and not heading back toward the camera (|turn| < ~110°), so walking
     // toward the screen doesn't whip the camera 180° around.
-    if (CAMERA_FOLLOWS_FACING && moved) {
+    if (wheelRide) {
+      // On the Ferris Wheel the camera swings round to the north, looking at the wheel face-on
+      const turn = Math.atan2(Math.sin(0 - camYawRef.current), Math.cos(0 - camYawRef.current));
+      camYawRef.current += turn * (1 - Math.exp(-3 * dt));
+    } else if (rideStart !== null) {
+      // On the slide the camera swings round outside the spiral, looking in at her and the tower
+      const rx = FROZEN_SLIDE_POS[0] - pos.x;
+      const rz = FROZEN_SLIDE_POS[2] - pos.z;
+      if (Math.hypot(rx, rz) > 0.9) {
+        const want = Math.atan2(rx, rz);
+        const turn = Math.atan2(Math.sin(want - camYawRef.current), Math.cos(want - camYawRef.current));
+        camYawRef.current += turn * (1 - Math.exp(-8 * dt));
+      }
+    } else if (CAMERA_FOLLOWS_FACING && moved) {
       const turn = Math.atan2(
         Math.sin(playerYawRef.current - camYawRef.current),
         Math.cos(playerYawRef.current - camYawRef.current)
@@ -410,9 +567,9 @@ export function CastleWorldScene({
     const fx = Math.sin(camYaw);
     const fz = Math.cos(camYaw);
     const camOffsetY = isNarrow ? 4.8 : 4.2;
-    const camBack = isNarrow ? 6.8 : 5.8;
+    const camBack = (isNarrow ? 6.8 : 5.8) * (wheelRide ? 1.6 : 1);
     camTargetRef.current.set(pos.x - fx * camBack, camOffsetY + pos.y * 0.9, pos.z - fz * camBack);
-    camera.position.lerp(camTargetRef.current, Math.min(1, dt * 4.5));
+    camera.position.lerp(camTargetRef.current, Math.min(1, dt * (riding ? 10 : 4.5)));
     camera.lookAt(pos.x + fx * 1.8, 0.8 + pos.y * 0.9, pos.z + fz * 1.8);
   });
 

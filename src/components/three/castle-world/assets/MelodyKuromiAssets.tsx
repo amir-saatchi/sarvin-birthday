@@ -12,20 +12,42 @@ import {
 } from "../../MagicalDecor3D";
 import type { Vec3 } from "../types";
 import {
+  CIRCLE_OBSTACLES,
   FRIENDSHIP_MONUMENT_POS,
   KUROMI_CANDY_CART_POS,
   KUROMI_HOST_POS,
+  KUROMI_RINK_POS,
+  KUROMI_RINK_R,
   KUROMI_STAGE_POS,
+  KUROMI_STAR_PADS,
   MELODY_COTTAGE_POS,
+  MELODY_FLOWER_SPOTS,
   MELODY_GIFT_SPOTS,
   MELODY_HOST_POS,
+  MELODY_ISLAND,
+  MELODY_JELLY_PADS,
   MELODY_LAMP_SPOTS,
   MELODY_LOLLIPOP_SPOTS,
+  MELODY_PATH_STONES,
   MELODY_TEA_TABLE_POS,
   MELODY_TREE_SPOTS,
+  MELODY_WHEEL_PAD,
+  MELODY_WHEEL_POS,
 } from "../worldData";
+import { GrassDeck3D, GrassTufts3D } from "./GrassAssets";
+import {
+  BouncePad3D,
+  CandyPathStones3D,
+  KuromiMoonSwing3D,
+  KuromiSkateRink3D,
+  MelodyFerrisWheel3D,
+  PastelRibbonFence3D,
+  StrawberryGarden3D,
+  TeacupTwirl3D,
+  type RibbonFenceRow,
+} from "./MelodyFriendsAssets";
 import { FairyLampPost3D, GiantLollipop3D } from "./WorldLandmarkAssets";
-import { PastelTree3D } from "./WorldNatureAssets";
+import { GiantFlower3D, PastelTree3D } from "./WorldNatureAssets";
 
 // Reusable cute 3D ribbon bow accent
 function PastelBow3D({
@@ -887,158 +909,114 @@ export function FriendshipHeartMonument3D({
   );
 }
 
-// Pastel pink & lavender perimeter fence row closing Melody & Kuromi Land cleanly
-function PastelRibbonFenceRow3D({
-  position,
-  length,
-  rotationY = 0,
-  theme = "pink",
-}: {
-  position: Vec3;
-  length: number;
-  rotationY?: number;
-  theme?: "pink" | "lavender";
-}) {
-  const posts = useMemo(() => {
-    const count = Math.max(2, Math.round(length / 1.5) + 1);
-    return Array.from({ length: count }, (_, i) => (i / (count - 1) - 0.5) * length);
-  }, [length]);
+// Perimeter ribbon fence of the 44 × 44 island: west & east edges, the south edge (pink | lavender halves) and the
+// north edge either side of the bridge opening (x ∈ [-2.8, 2.8])
+const MELODY_FENCE_ROWS: RibbonFenceRow[] = [
+  { from: [-21.4, 29.1], to: [-21.4, 71.9], theme: "pink" },
+  { from: [21.4, 29.1], to: [21.4, 71.9], theme: "lavender" },
+  { from: [-21.4, 71.9], to: [0, 71.9], theme: "pink" },
+  { from: [0, 71.9], to: [21.4, 71.9], theme: "lavender" },
+  { from: [-21.4, 29.1], to: [-2.8, 29.1], theme: "pink" },
+  { from: [2.8, 29.1], to: [21.4, 29.1], theme: "lavender" },
+];
+const PROMENADE_TILES = [30.4, 33.0, 35.6, 38.2, 40.8, 43.4, 46.0];
 
-  const railColor = theme === "pink" ? "#ff85c0" : "#c084fc";
-  const postColor = theme === "pink" ? "#fff1f7" : "#f3e8ff";
-  const capColor = theme === "pink" ? "#ff6eb4" : "#a855f7";
-
-  return (
-    <group position={position} rotation={[0, rotationY, 0]}>
-      <mesh position={[0, 0.56, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.055, 0.055, length + 0.14, 8]} />
-        <meshPhysicalMaterial color={railColor} roughness={0.3} clearcoat={0.5} />
-      </mesh>
-      <mesh position={[0, 0.28, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.05, 0.05, length + 0.14, 8]} />
-        <meshStandardMaterial color={postColor} roughness={0.4} />
-      </mesh>
-      {posts.map((px, idx) => (
-        <group key={`mfpost-${idx}`} position={[px, 0, 0]}>
-          <mesh position={[0, 0.42, 0]}>
-            <cylinderGeometry args={[0.085, 0.1, 0.84, 8]} />
-            <meshStandardMaterial color={postColor} roughness={0.42} />
-          </mesh>
-          <mesh position={[0, 0.88, 0]}>
-            <sphereGeometry args={[0.11, 10, 10]} />
-            <meshPhysicalMaterial
-              color={idx % 2 === 0 ? capColor : "#fde047"}
-              roughness={0.22}
-              clearcoat={0.75}
-            />
-          </mesh>
-        </group>
-      ))}
-    </group>
-  );
-}
-
-// Floating 30 × 28 Dual-Theme My Melody & Kuromi Land Island (x ∈ [-15.0, 15.0], z ∈ [28.5, 56.5], centered at [0, 0, 42.5])
+// Floating 44 × 44 Dual-Theme My Melody & Kuromi Land Island (x ∈ [-22, 22], z ∈ [28.5, 72.5], centred at [0, 0, 50.5])
 export function MelodyKuromiPlatform3D({
   onGroundClick,
 }: {
   onGroundClick: (e: ThreeEvent<PointerEvent>) => void;
 }) {
+  const cz = (MELODY_ISLAND.minZ + MELODY_ISLAND.maxZ) / 2;
   const cloudPuffs: [number, number, number, number][] = [
-    [-14.0, -2.5, 30.0, 2.6],
-    [14.0, -2.5, 30.0, 2.6],
-    [-14.5, -2.6, 42.5, 3.0],
-    [14.5, -2.6, 42.5, 3.0],
-    [-14.0, -2.5, 55.0, 2.7],
-    [14.0, -2.5, 55.0, 2.7],
-    [0, -3.0, 56.2, 3.2],
-    [-7.5, -2.9, 55.6, 2.6],
-    [7.5, -2.9, 55.6, 2.6],
+    [-20.5, -2.5, 31.0, 2.8],
+    [20.5, -2.5, 31.0, 2.8],
+    [-21.0, -2.6, 43.0, 3.2],
+    [21.0, -2.6, 43.0, 3.2],
+    [-21.0, -2.6, 56.0, 3.2],
+    [21.0, -2.6, 56.0, 3.2],
+    [-20.5, -2.5, 69.0, 2.9],
+    [20.5, -2.5, 69.0, 2.9],
+    [0, -3.0, 72.2, 3.4],
+    [-10.5, -2.9, 71.8, 2.9],
+    [10.5, -2.9, 71.8, 2.9],
   ];
 
-  const promenadeTiles = [30.4, 33.0, 35.6, 38.2, 40.8, 43.4, 46.0];
+  // Spots the grass tufts stay off: solid things, paths, rides, pads and the monument plaza
+  const melodyTuftClear = useMemo(() => {
+    const [wx, , wz] = MELODY_WHEEL_POS;
+    return [
+      ...CIRCLE_OBSTACLES.map((o) => ({ x: o.x, z: o.z, r: o.r + 0.3 })),
+      ...MELODY_PATH_STONES.map(([x, z]) => ({ x, z, r: 0.9 })),
+      ...PROMENADE_TILES.map((z) => ({ x: 0, z, r: 1.3 })),
+      ...[...MELODY_JELLY_PADS, ...KUROMI_STAR_PADS].map(([x, , z]) => ({ x, z, r: 1.2 })),
+      ...[-2.6, 0, 2.6].map((dx) => ({ x: wx + dx, z: wz, r: 2.2 })),
+      { x: MELODY_WHEEL_PAD[0], z: MELODY_WHEEL_PAD[2], r: 1.2 },
+      { x: KUROMI_RINK_POS[0], z: KUROMI_RINK_POS[2], r: KUROMI_RINK_R + 0.3 },
+      { x: FRIENDSHIP_MONUMENT_POS[0], z: FRIENDSHIP_MONUMENT_POS[2], r: 3.3 },
+    ];
+  }, []);
 
   return (
     <group>
-      {/* === CLICKABLE PASTEL CREAM-PINK MARBLE DECK (30 × 28, exact x ∈ [-15.0, 15.0], z ∈ [28.5, 56.5], top at y = 0) === */}
-      <mesh position={[0, -0.25, 42.5]} onPointerDown={onGroundClick} receiveShadow>
-        <boxGeometry args={[30, 0.5, 28]} />
-        <meshPhysicalMaterial color="#fff5fa" roughness={0.36} clearcoat={0.25} />
-      </mesh>
+      {/* === CLICKABLE PASTEL MINT-PINK LAWN (44 × 44, top at y = 0) === */}
+      <GrassDeck3D position={[0, -0.25, cz]} size={[44, 0.5, 44]} color="#a8e6b0" onPointerDown={onGroundClick} />
+      <GrassTufts3D
+        minX={MELODY_ISLAND.minX + 0.4}
+        maxX={MELODY_ISLAND.maxX - 0.4}
+        minZ={MELODY_ISLAND.minZ + 0.5}
+        maxZ={MELODY_ISLAND.maxZ - 0.5}
+        count={620}
+        keepClear={melodyTuftClear}
+        seed={37}
+      />
 
-      {/* Subtle Pink Left Wing Mosaic (My Melody) & Lavender Right Wing Mosaic (Kuromi) — cleanly offset in Y for zero Z-fighting */}
-      <mesh position={[-7.6, 0.012, 42.5]} onPointerDown={onGroundClick}>
-        <boxGeometry args={[13.2, 0.012, 25.6]} />
-        <meshStandardMaterial color="#ffe4f1" roughness={0.48} />
-      </mesh>
-      <mesh position={[7.6, 0.012, 42.5]} onPointerDown={onGroundClick}>
-        <boxGeometry args={[13.2, 0.012, 25.6]} />
-        <meshStandardMaterial color="#f3e8ff" roughness={0.48} />
-      </mesh>
-
-      {/* Central Pastel Friendship Promenade Stepping Tiles (y = 0.026, cleanly above wing mosaics) */}
-      {promenadeTiles.map((tz, idx) => (
+      {/* Central Pastel Friendship Promenade Stepping Tiles */}
+      {PROMENADE_TILES.map((tz, idx) => (
         <mesh key={`mprom-${idx}`} position={[0, 0.026, tz]} onPointerDown={onGroundClick}>
           <cylinderGeometry args={[0.92, 0.98, 0.036, 16]} />
-          <meshStandardMaterial
-            color={idx % 2 === 0 ? "#fbcfe8" : "#e9d5ff"}
-            roughness={0.42}
-          />
+          <meshStandardMaterial color={idx % 2 === 0 ? "#fbcfe8" : "#e9d5ff"} roughness={0.42} />
         </mesh>
       ))}
+      {/* Pink & lavender plaza round the Friendship Monument */}
+      <mesh position={[FRIENDSHIP_MONUMENT_POS[0], 0.018, FRIENDSHIP_MONUMENT_POS[2]]} onPointerDown={onGroundClick}>
+        <cylinderGeometry args={[3.2, 3.2, 0.036, 40]} />
+        <meshStandardMaterial color="#ffe4f1" roughness={0.45} />
+      </mesh>
+      <mesh position={[FRIENDSHIP_MONUMENT_POS[0], 0.04, FRIENDSHIP_MONUMENT_POS[2]]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[3.2, 0.08, 6, 48]} />
+        <meshStandardMaterial color="#e9d5ff" roughness={0.4} />
+      </mesh>
+      <CandyPathStones3D stones={MELODY_PATH_STONES} />
 
-      {/* Chunky Dual-Tone Pink (Left) & Lavender (Right) Floating Cliff Underside — butt-jointed at x = 0 */}
-      <mesh position={[-7.3, -1.55, 42.5]}>
-        <boxGeometry args={[14.6, 2.1, 27.2]} />
+      {/* Chunky Dual-Tone Pink (west) & Lavender (east) Floating Cliff Underside — butt-jointed at x = 0 */}
+      <mesh position={[-10.8, -1.55, cz]}>
+        <boxGeometry args={[21.6, 2.1, 43.2]} />
         <meshStandardMaterial color="#f472b6" roughness={0.75} />
       </mesh>
-      <mesh position={[7.3, -1.55, 42.5]}>
-        <boxGeometry args={[14.6, 2.1, 27.2]} />
+      <mesh position={[10.8, -1.55, cz]}>
+        <boxGeometry args={[21.6, 2.1, 43.2]} />
         <meshStandardMaterial color="#a855f7" roughness={0.75} />
       </mesh>
-      <mesh position={[-6.95, -3.05, 42.5]}>
-        <boxGeometry args={[13.9, 0.9, 25.8]} />
+      <mesh position={[-10.45, -3.05, cz]}>
+        <boxGeometry args={[20.9, 0.9, 41.8]} />
         <meshStandardMaterial color="#ec4899" roughness={0.82} />
       </mesh>
-      <mesh position={[6.95, -3.05, 42.5]}>
-        <boxGeometry args={[13.9, 0.9, 25.8]} />
+      <mesh position={[10.45, -3.05, cz]}>
+        <boxGeometry args={[20.9, 0.9, 41.8]} />
         <meshStandardMaterial color="#7e22ce" roughness={0.82} />
       </mesh>
 
       {/* Fluffy Pastel Clouds Tucked Underneath */}
-      {cloudPuffs.map(([cx, cy, cz, cr], idx) => (
-        <mesh key={`mcloud-${idx}`} position={[cx, cy, cz]} scale={[1.35, 0.62, 1.25]}>
-          <sphereGeometry args={[cr, 16, 16]} />
-          <meshStandardMaterial
-            color={idx % 2 === 0 ? "#fff0f7" : "#f5f3ff"}
-            roughness={0.55}
-          />
+      {cloudPuffs.map(([px, py, pz, pr], idx) => (
+        <mesh key={`mcloud-${idx}`} position={[px, py, pz]} scale={[1.35, 0.62, 1.25]}>
+          <sphereGeometry args={[pr, 16, 16]} />
+          <meshStandardMaterial color={idx % 2 === 0 ? "#fff0f7" : "#f5f3ff"} roughness={0.55} />
         </mesh>
       ))}
 
-      {/* === PERIMETER PASTEL PINK & LAVENDER FENCES (closing all 4 corners cleanly, north bridge opening x ∈ [-2.8, 2.8]) === */}
-      {/* West Edge (x = -14.4, z ∈ [29.1, 55.9]) */}
-      <PastelRibbonFenceRow3D
-        position={[-14.4, 0, 42.5]}
-        length={26.8}
-        rotationY={Math.PI / 2}
-        theme="pink"
-      />
-      {/* East Edge (x = 14.4, z ∈ [29.1, 55.9]) */}
-      <PastelRibbonFenceRow3D
-        position={[14.4, 0, 42.5]}
-        length={26.8}
-        rotationY={Math.PI / 2}
-        theme="lavender"
-      />
-      {/* South Edge Left Half (z = 55.9, x ∈ [-14.4, 0]) */}
-      <PastelRibbonFenceRow3D position={[-7.2, 0, 55.9]} length={14.4} theme="pink" />
-      {/* South Edge Right Half (z = 55.9, x ∈ [0, 14.4]) */}
-      <PastelRibbonFenceRow3D position={[7.2, 0, 55.9]} length={14.4} theme="lavender" />
-      {/* North Edge West Segment (z = 29.1, x ∈ [-14.4, -2.8]) */}
-      <PastelRibbonFenceRow3D position={[-8.6, 0, 29.1]} length={11.6} theme="pink" />
-      {/* North Edge East Segment (z = 29.1, x ∈ [2.8, 14.4]) */}
-      <PastelRibbonFenceRow3D position={[8.6, 0, 29.1]} length={11.6} theme="lavender" />
+      {/* === PERIMETER PASTEL PINK & LAVENDER RIBBON FENCE === */}
+      <PastelRibbonFence3D rows={MELODY_FENCE_ROWS} />
 
       {/* === LANDMARK BUILDINGS & PROPS === */}
       <MelodyCottage3D position={MELODY_COTTAGE_POS} />
@@ -1047,41 +1025,36 @@ export function MelodyKuromiPlatform3D({
       <KuromiCandyCart3D position={KUROMI_CANDY_CART_POS} />
       <FriendshipHeartMonument3D position={FRIENDSHIP_MONUMENT_POS} />
 
-      {/* === WAVING MY MELODY & CHEERING KUROMI BUNNY HOSTS === */}
-      <KawaiiBunnyFriend3D
-        variant="pink"
-        position={MELODY_HOST_POS}
-        rotation={[0, 2.55, 0]}
-        scale={1.5}
-      />
-      <KawaiiBunnyFriend3D
-        variant="purple"
-        position={KUROMI_HOST_POS}
-        rotation={[0, -2.55, 0]}
-        scale={1.5}
-      />
+      {/* === PLAY AREAS === */}
+      <StrawberryGarden3D />
+      <KuromiMoonSwing3D />
+      {MELODY_JELLY_PADS.map((p, idx) => (
+        <BouncePad3D key={`mjelly-${idx}`} position={p} variant="jelly" />
+      ))}
+      {KUROMI_STAR_PADS.map((p, idx) => (
+        <BouncePad3D key={`kstar-${idx}`} position={p} variant="star" />
+      ))}
+      <TeacupTwirl3D />
+      <MelodyFerrisWheel3D />
+      <KuromiSkateRink3D />
 
-      {/* === PASTEL TREES === */}
+      {/* === WAVING MY MELODY & CHEERING KUROMI BUNNY HOSTS === */}
+      <KawaiiBunnyFriend3D variant="pink" position={MELODY_HOST_POS} rotation={[0, 2.55, 0]} scale={1.5} />
+      <KawaiiBunnyFriend3D variant="purple" position={KUROMI_HOST_POS} rotation={[0, -2.55, 0]} scale={1.5} />
+
+      {/* === PASTEL TREES, FLOWERS, LOLLIPOPS, LAMPS & GIFTS === */}
       {MELODY_TREE_SPOTS.map((tr, idx) => (
         <PastelTree3D key={`mtree-${idx}`} position={tr.pos} color={tr.color} scale={tr.scale} />
       ))}
-
-      {/* === GIANT LOLLIPOPS === */}
-      {MELODY_LOLLIPOP_SPOTS.map((lol, idx) => (
-        <GiantLollipop3D
-          key={`mlol-${idx}`}
-          position={lol.pos}
-          color={lol.color}
-          scale={lol.scale}
-        />
+      {MELODY_FLOWER_SPOTS.map((f, idx) => (
+        <GiantFlower3D key={`mflower-${idx}`} position={f.pos} color={f.color} />
       ))}
-
-      {/* === GLOWING FAIRY LAMP POSTS === */}
+      {MELODY_LOLLIPOP_SPOTS.map((lol, idx) => (
+        <GiantLollipop3D key={`mlol-${idx}`} position={lol.pos} color={lol.color} scale={lol.scale} />
+      ))}
       {MELODY_LAMP_SPOTS.map((lp, idx) => (
         <FairyLampPost3D key={`mlamp-${idx}`} position={lp} />
       ))}
-
-      {/* === BIRTHDAY GIFT BOXES === */}
       {MELODY_GIFT_SPOTS.map((g, idx) => (
         <KawaiiGiftBox3D
           key={`mgift-${idx}`}
@@ -1093,22 +1066,9 @@ export function MelodyKuromiPlatform3D({
       ))}
 
       {/* === PINK & LAVENDER FAIRY SPARKLES === */}
-      <Sparkles
-        count={48}
-        position={[-7.5, 3.6, 42.5]}
-        scale={[14, 7, 25]}
-        size={4.6}
-        speed={0.36}
-        color="#f472b6"
-      />
-      <Sparkles
-        count={48}
-        position={[7.5, 3.6, 42.5]}
-        scale={[14, 7, 25]}
-        size={4.6}
-        speed={0.36}
-        color="#c084fc"
-      />
+      <Sparkles count={64} position={[-11, 3.6, cz]} scale={[20, 7, 40]} size={4.6} speed={0.36} color="#f472b6" />
+      <Sparkles count={64} position={[11, 3.6, cz]} scale={[20, 7, 40]} size={4.6} speed={0.36} color="#c084fc" />
+      <Sparkles count={24} position={[-12.6, 7.5, 63.6]} scale={[11, 9, 4]} size={5.5} speed={0.3} color="#fde68a" />
     </group>
   );
 }

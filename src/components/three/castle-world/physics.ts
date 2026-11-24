@@ -14,6 +14,8 @@ import {
   FROZEN_BRIDGE_CENTER_Z,
   FROZEN_BRIDGE_EAST_X,
   FROZEN_BRIDGE_WEST_X,
+  FROZEN_CAVE,
+  FROZEN_ROCK_BOXES,
   MELODY_BRIDGE_NORTH_Z,
   MELODY_BRIDGE_SOUTH_Z,
   RAISED_TERRACES,
@@ -39,8 +41,13 @@ type SteeringZone =
   | "melody";
 
 function getSteeringZone(x: number, z: number): SteeringZone {
-  // Dinosaur Land reaches further north (z -19.7) than the main island, but nothing else lies east of its bridge
+  // My Melody & Kuromi Land is the only thing south of its bridge, and it is wider than the x-range where the
+  // east/west bridges start, so decide it by z first
+  if (z > MELODY_BRIDGE_SOUTH_Z) return "melody";
+  // Dinosaur Land & Frozen Land reach further north (z -19.7) than the main island, but nothing else lies
+  // east / west of their bridges
   if (x > DINO_BRIDGE_EAST_X) return "dino";
+  if (x < FROZEN_BRIDGE_WEST_X) return "frozen";
   // North of the main island only the Royal Bridge and the castle exist; the castle is wider than the
   // x-range where the east/west bridges start, so decide by z first.
   if (z < BRIDGE_SOUTH_Z) {
@@ -144,8 +151,43 @@ export function getCrossZoneSteeringTarget(
   pos: THREE.Vector3,
   target: THREE.Vector3
 ): { x: number; z: number } {
-  const steer = getBridgeSteeringTarget(pos, target);
+  const bridge = getBridgeSteeringTarget(pos, target);
+  const steer = getCaveSteeringTarget(pos, bridge.x, bridge.z);
   return CAPSULE_OBSTACLES.length ? detourAroundCapsules(pos, steer.x, steer.z) : steer;
+}
+
+function inFrozenCave(x: number, z: number): boolean {
+  return (
+    x >= FROZEN_CAVE.minX - 0.1 &&
+    x <= FROZEN_CAVE.maxX + 0.2 &&
+    z >= FROZEN_CAVE.minZ &&
+    z <= FROZEN_CAVE.maxZ
+  );
+}
+
+/**
+ * The Ice Cave is a walled pocket with one opening (its mouth faces east). Going in or out, walk straight only
+ * when the line actually passes through the opening; otherwise head for the point just outside the mouth first.
+ */
+function getCaveSteeringTarget(pos: THREE.Vector3, tx: number, tz: number): { x: number; z: number } {
+  const posIn = inFrozenCave(pos.x, pos.z);
+  if (posIn === inFrozenCave(tx, tz)) return { x: tx, z: tz };
+  const outside = posIn ? { x: tx, z: tz } : { x: pos.x, z: pos.z };
+  const inside = posIn ? { x: pos.x, z: pos.z } : { x: tx, z: tz };
+  const mouthX = FROZEN_CAVE.maxX;
+  // Clear opening between the wall ends, kept a unicorn-radius (+ a little) away from each
+  const lo = FROZEN_CAVE.minZ + UNICORN_RADIUS + 0.3;
+  const hi = FROZEN_CAVE.maxZ - UNICORN_RADIUS - 0.3;
+  if (outside.x > mouthX + 0.01) {
+    const t = (mouthX - inside.x) / (outside.x - inside.x);
+    const zAtMouth = inside.z + (outside.z - inside.z) * t;
+    if (zAtMouth >= lo && zAtMouth <= hi) return { x: tx, z: tz };
+  }
+  // Already standing at the mouth on the line in: carry on (avoids trotting in place on the waypoint)
+  if (Math.hypot(pos.x - FROZEN_CAVE.mouthX, pos.z - FROZEN_CAVE.mouthZ) < 0.35) {
+    return posIn ? { x: tx, z: tz } : { x: FROZEN_CAVE.maxX - 0.6, z: FROZEN_CAVE.mouthZ };
+  }
+  return { x: FROZEN_CAVE.mouthX, z: FROZEN_CAVE.mouthZ };
 }
 
 function getBridgeSteeringTarget(
@@ -537,6 +579,20 @@ export function pushPointOutOfCircleObstacles(x: number, z: number): { x: number
     const c = capsuleCircleAt(cap, p.x, p.z, capsuleScratch);
     pushOutOfCircle(p, c.x, c.z, c.r + UNICORN_RADIUS);
   }
+  // Frozen Land's rock walls (cliff & ice cave) back onto the island's west edge, so a tap on one goes to its
+  // nearest east, north or south side (never west, off the island). Two passes, since the walls touch each other.
+  for (let pass = 0; pass < 2; pass++) {
+    for (const b of FROZEN_ROCK_BOXES) {
+      const r = UNICORN_RADIUS;
+      if (p.x <= b.minX - r || p.x >= b.maxX + r || p.z <= b.minZ - r || p.z >= b.maxZ + r) continue;
+      const east = b.maxX + r - p.x;
+      const north = p.z - (b.minZ - r);
+      const south = b.maxZ + r - p.z;
+      if (east <= north && east <= south) p.x = b.maxX + r;
+      else if (north <= south) p.z = b.minZ - r;
+      else p.z = b.maxZ + r;
+    }
+  }
   return { x: p.x, z: p.z };
 }
 
@@ -685,6 +741,11 @@ export function resolvePlayerCollisions(
   // South castle walls on either side of the gatehouse
   for (const wall of CASTLE_WALL_BOXES) {
     pushOutOfBox(pos, wall, UNICORN_RADIUS);
+  }
+
+  // Frozen Land rock: the waterfall cliff and the Ice Cave walls
+  for (const rock of FROZEN_ROCK_BOXES) {
+    pushOutOfBox(pos, rock, UNICORN_RADIUS);
   }
 
   // Solid circle collisions with fountain, castle towers, throne, trees, lamps, lollipops, crystals, bunnies & gifts
