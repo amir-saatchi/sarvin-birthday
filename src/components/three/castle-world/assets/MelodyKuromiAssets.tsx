@@ -1,7 +1,9 @@
 "use client";
 
+import { bridgeSpan } from "../worldSpace";
 import React, { useMemo, useRef } from "react";
-import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import { type ThreeEvent } from "@react-three/fiber";
+import { useFrame } from "../landFrame";
 import { Sparkles } from "@react-three/drei";
 import * as THREE from "three";
 import {
@@ -240,65 +242,65 @@ export function MelodyKuromiArchway3D({
   );
 }
 
-// Walkable Pastel Ribbon Bridge spanning exact z ∈ [21.0, 28.5] (center [0, 0, 24.75], length 7.5, width 5.4)
+// Walkable Pastel Ribbon Bridge from the garden edge (z = 21) out to the moved Melody Land (width 5.4; see worldSpace.ts)
 // Exact butt-jointed seams with zero overlap and zero Z-fighting against Green Land (z = 21.0) & Melody & Kuromi Land (z = 28.5)
 export function PastelRibbonBridge3D({
   onGroundClick,
 }: {
   onGroundClick: (e: ThreeEvent<PointerEvent>) => void;
 }) {
-  const postZs = [21.4, 23.05, 24.75, 26.45, 28.1];
+  const { mid, len, posts: postZs } = bridgeSpan("melody");
 
   return (
     <group>
-      {/* Clickable pastel cream-pink marble deck (exact z ∈ [21.0, 28.5], top at y = 0) */}
-      <mesh position={[0, -0.18, 24.75]} onPointerDown={onGroundClick} receiveShadow>
-        <boxGeometry args={[5.4, 0.36, 7.5]} />
+      {/* Clickable pastel cream-pink marble deck (garden edge z = 21 out to the land, top at y = 0) */}
+      <mesh position={[0, -0.18, mid]} onPointerDown={onGroundClick} receiveShadow>
+        <boxGeometry args={[5.4, 0.36, len]} />
         <meshPhysicalMaterial color="#fff1f7" roughness={0.32} clearcoat={0.35} />
       </mesh>
 
       {/* Underside pastel pink & lavender trim beams (inset slightly in Z for zero overlap) */}
-      <mesh position={[0, -0.56, 24.75]}>
-        <boxGeometry args={[4.9, 0.44, 7.4]} />
+      <mesh position={[0, -0.56, mid]}>
+        <boxGeometry args={[4.9, 0.44, len - 0.1]} />
         <meshStandardMaterial color="#c084fc" roughness={0.65} />
       </mesh>
-      <mesh position={[0, -0.38, 24.75]}>
-        <boxGeometry args={[5.55, 0.14, 7.48]} />
+      <mesh position={[0, -0.38, mid]}>
+        <boxGeometry args={[5.55, 0.14, len - 0.02]} />
         <meshStandardMaterial color="#f472b6" roughness={0.5} />
       </mesh>
 
-      {/* Pink-and-Lavender Ribbon Runner Strip (exact 7.5 length along Z, cleanly stepped in Y for zero Z-fighting) */}
-      <mesh position={[0, 0.018, 24.75]}>
-        <boxGeometry args={[2.96, 0.01, 7.5]} />
+      {/* Pink-and-Lavender Ribbon Runner Strip (full bridge length along Z, cleanly stepped in Y for zero Z-fighting) */}
+      <mesh position={[0, 0.018, mid]}>
+        <boxGeometry args={[2.96, 0.01, len]} />
         <meshStandardMaterial color="#fde047" roughness={0.4} />
       </mesh>
-      <mesh position={[-0.65, 0.026, 24.75]} onPointerDown={onGroundClick}>
-        <boxGeometry args={[1.3, 0.012, 7.5]} />
+      <mesh position={[-0.65, 0.026, mid]} onPointerDown={onGroundClick}>
+        <boxGeometry args={[1.3, 0.012, len]} />
         <meshPhysicalMaterial color="#ff85c0" roughness={0.28} clearcoat={0.45} />
       </mesh>
-      <mesh position={[0.65, 0.026, 24.75]} onPointerDown={onGroundClick}>
-        <boxGeometry args={[1.3, 0.012, 7.5]} />
+      <mesh position={[0.65, 0.026, mid]} onPointerDown={onGroundClick}>
+        <boxGeometry args={[1.3, 0.012, len]} />
         <meshPhysicalMaterial color="#c084fc" roughness={0.28} clearcoat={0.45} />
       </mesh>
-      <mesh position={[0, 0.034, 24.75]}>
-        <boxGeometry args={[0.14, 0.008, 7.5]} />
+      <mesh position={[0, 0.034, mid]}>
+        <boxGeometry args={[0.14, 0.008, len]} />
         <meshStandardMaterial color="#fef9c3" roughness={0.35} />
       </mesh>
 
       {/* West & East Bridge Railings with Alternating Pink & Lavender Posts + Glowing Lantern Orbs */}
       {[-2.52, 2.52].map((rx) => (
         <group key={`ribbon-rail-${rx}`}>
-          {/* Top & Mid Pastel Handrails spanning exact 7.5 along Z */}
-          <mesh position={[rx, 0.72, 24.75]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.08, 0.08, 7.5, 10]} />
+          {/* Top & Mid Pastel Handrails spanning the full bridge length */}
+          <mesh position={[rx, 0.72, mid]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.08, 0.08, len, 10]} />
             <meshPhysicalMaterial
               color={rx < 0 ? "#ff85c0" : "#c084fc"}
               roughness={0.28}
               clearcoat={0.55}
             />
           </mesh>
-          <mesh position={[rx, 0.38, 24.75]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.06, 0.06, 7.5, 10]} />
+          <mesh position={[rx, 0.38, mid]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.06, 0.06, len, 10]} />
             <meshStandardMaterial color="#fff1f7" roughness={0.38} />
           </mesh>
           {/* Alternating Pink & Lavender Posts with Glowing Heart/Orb Lanterns */}

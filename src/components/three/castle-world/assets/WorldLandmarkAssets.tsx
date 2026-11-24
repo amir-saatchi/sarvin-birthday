@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame } from "../landFrame";
 import * as THREE from "three";
 import { ExtrudedStar3D } from "../../MagicalDecor3D";
 import { GARDEN_FENCE_POST } from "./BatchedProps";

@@ -65,11 +65,17 @@ import {
   STAR_SPOTS,
 } from "./worldData";
 import { playerWorldPos } from "./playerTracker";
+import { stretchAt, toWorld, warpToLayout, warpToWorld } from "./worldSpace";
 import { SLIDE_RIDE_DURATION, slideRidePose } from "./frozenSlideRide";
 import { WHEEL_RIDE_DURATION, wheelGondolaToBoard, wheelRidePose } from "./melodyWheelRide";
 
 // true: the camera swings round behind the unicorn as she turns. false: fixed north-facing camera.
 const CAMERA_FOLLOWS_FACING = true;
+
+// Pickups as drawn (their data stays in layout coordinates, see worldSpace.ts)
+const STAR_DRAW_POS = STAR_SPOTS.map(toWorld);
+const HEART_DRAW_POS = HEART_TRAIL.map(toWorld);
+const CASTLE_SPARKLES_POS = toWorld([0, 4.2, -48]);
 
 export type CastleWorldSceneProps = {
   collectedStars: boolean[];
@@ -160,7 +166,9 @@ export function CastleWorldScene({
     // A tap on the fountain/tree/tower lands inside its collision circle: move the target to the
     // obstacle's edge so the unicorn can actually arrive instead of circling it forever.
     // Twice: a tap past an obstacle at the island's edge can be pushed off the island, then clamped back onto it
-    let clamped = { x: e.point.x, z: e.point.z };
+    // The tap is where the ground is drawn: back to layout coordinates first
+    const [lx, lz] = warpToLayout(e.point.x, e.point.z);
+    let clamped = { x: lx, z: lz };
     for (let pass = 0; pass < 2; pass++) {
       const outside = pushPointOutOfCircleObstacles(clamped.x, clamped.z);
       clamped = clampToWalkableZones(outside.x, outside.z);
@@ -188,6 +196,8 @@ export function CastleWorldScene({
       (Math.hypot(pos.x - FROZEN_SKATING_POND_POS[0], pos.z - FROZEN_SKATING_POND_POS[2]) < FROZEN_SKATING_POND_R ||
         Math.hypot(pos.x - KUROMI_RINK_POS[0], pos.z - KUROMI_RINK_POS[2]) < KUROMI_RINK_R);
     const speed = 6.8 * (onIce ? FROZEN_SKATE_SPEED : 1);
+    // Bridges are drawn longer than they are in layout: shorter layout steps there keep her speed
+    const [stretchX, stretchZ] = stretchAt(pos.x, pos.z);
     let moved = false;
     // Distance the tap-to-move steering asked for this frame (frame-rate independent blocked check)
     let expectedMove = 0;
@@ -249,8 +259,8 @@ export function CastleWorldScene({
       const rightZ = Math.sin(cy);
       const ix = kx / len;
       const iz = -kz / len;
-      const vx = (fwdX * iz + rightX * ix) * speed * dt;
-      const vz = (fwdZ * iz + rightZ * ix) * speed * dt;
+      const vx = ((fwdX * iz + rightX * ix) * speed * dt) / stretchX;
+      const vz = ((fwdZ * iz + rightZ * ix) * speed * dt) / stretchZ;
       const clamped = clampToWalkableZones(pos.x + vx, pos.z + vz);
       pos.x = clamped.x;
       pos.z = clamped.z;
@@ -271,7 +281,8 @@ export function CastleWorldScene({
         const dz = steer.z - pos.z;
         const dist = Math.hypot(dx, dz);
         if (dist > 0.01) {
-          const step = Math.min(dist, speed * dt);
+          const stretch = Math.hypot((dx / dist) * stretchX, (dz / dist) * stretchZ);
+          const step = Math.min(dist, (speed * dt) / stretch);
           expectedMove = step;
           // Slide around circular obstacles (fountain, towers, trees…) instead of pushing into them
           const slid = slideStepAroundCircles(pos, (dx / dist) * step, (dz / dist) * step);
@@ -377,12 +388,14 @@ export function CastleWorldScene({
     }
 
     const onGroundNow = Math.abs(pos.y - floorAfterMove) < 0.04 && jumpVelRef.current === 0;
+    // Where she is drawn: the lands and bridges are drawn further out than their layout
+    const [drawX, drawZ] = warpToWorld(pos.x, pos.z);
     if (playerGroupRef.current) {
       const trotHop =
         moved && onGroundNow && !onIce && !riding
           ? Math.abs(Math.sin(state.clock.elapsedTime * 12)) * 0.22
           : 0;
-      playerGroupRef.current.position.set(pos.x, pos.y + trotHop + 0.16, pos.z);
+      playerGroupRef.current.position.set(drawX, pos.y + trotHop + 0.16, drawZ);
       playerGroupRef.current.rotation.y = playerYawRef.current;
       // Skating: a gentle side-to-side sway as she glides
       playerGroupRef.current.rotation.z = onIce && moved ? Math.sin(state.clock.elapsedTime * 3.2) * 0.12 : 0;
@@ -569,9 +582,9 @@ export function CastleWorldScene({
     const fz = Math.cos(camYaw);
     const camOffsetY = isNarrow ? 4.8 : 4.2;
     const camBack = (isNarrow ? 6.8 : 5.8) * (wheelRide ? 1.6 : 1);
-    camTargetRef.current.set(pos.x - fx * camBack, camOffsetY + pos.y * 0.9, pos.z - fz * camBack);
+    camTargetRef.current.set(drawX - fx * camBack, camOffsetY + pos.y * 0.9, drawZ - fz * camBack);
     camera.position.lerp(camTargetRef.current, Math.min(1, dt * (riding ? 10 : 4.5)));
-    camera.lookAt(pos.x + fx * 1.8, 0.8 + pos.y * 0.9, pos.z + fz * 1.8);
+    camera.lookAt(drawX + fx * 1.8, 0.8 + pos.y * 0.9, drawZ + fz * 1.8);
   });
 
   return (
@@ -584,9 +597,9 @@ export function CastleWorldScene({
 
       {/* 10 Collectible Magical Birthday Stars */}
       {STAR_SPOTS.map(
-        (pos, idx) =>
+        (_, idx) =>
           !collectedStars[idx] && (
-            <group key={`star-${idx}`} position={pos}>
+            <group key={`star-${idx}`} position={STAR_DRAW_POS[idx]}>
               <Float speed={2.6} rotationIntensity={0} floatIntensity={1} floatingRange={[-0.14, 0.14]}>
                 <ExtrudedStar3D
                   position={[0, 0, 0]}
@@ -602,7 +615,7 @@ export function CastleWorldScene({
       )}
 
       {/* Collectible Heart Coin Trails */}
-      <HeartCoinBatch3D spots={HEART_TRAIL} collected={collectedHearts} />
+      <HeartCoinBatch3D spots={HEART_DRAW_POS} collected={collectedHearts} />
 
       {/* Glowing click-to-move destination ring */}
       <TargetRing3D targetRef={targetPosRef} />
@@ -618,7 +631,7 @@ export function CastleWorldScene({
       <Sparkles count={95} scale={[36, 7, 34]} size={4.8} speed={0.4} color="#fef08a" />
       <Sparkles
         count={80}
-        position={[0, 4.2, -48]}
+        position={CASTLE_SPARKLES_POS}
         scale={[44, 8, 46]}
         size={4.8}
         speed={0.4}

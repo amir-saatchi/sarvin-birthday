@@ -1,7 +1,9 @@
 "use client";
 
+import { bridgeSpan } from "../worldSpace";
 import React, { Suspense, useMemo, useRef } from "react";
-import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import { type ThreeEvent } from "@react-three/fiber";
+import { useFrame } from "../landFrame";
 import { Sparkles, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { ExtrudedStar3D } from "../../MagicalDecor3D";
@@ -192,40 +194,40 @@ export function JungleArchway3D({
   );
 }
 
-// Walkable Wooden Jungle Log Bridge spanning exact x ∈ [20.0, 27.5] (center x = 23.75, z = 2.0, length 7.5, width 5.4)
+// Walkable Wooden Jungle Log Bridge from the garden edge (x = 20) out to the moved Dino Land (z = 2.0, width 5.4; see worldSpace.ts)
 // Butt-jointed with zero overlap and zero Z-fighting against Green Land (x = 20.0) and Dinosaur Land (x = 27.5)
 export function DinoLogBridge3D({
   onGroundClick,
 }: {
   onGroundClick: (e: ThreeEvent<PointerEvent>) => void;
 }) {
-  const postXs = [20.4, 22.05, 23.75, 25.45, 27.1];
+  const { mid, len, posts: postXs } = bridgeSpan("dino");
 
   return (
     <group>
-      {/* Clickable warm timber plank deck (exact x ∈ [20.0, 27.5], top at y = 0) */}
-      <mesh position={[23.75, -0.18, 2.0]} onPointerDown={onGroundClick} receiveShadow>
-        <boxGeometry args={[7.5, 0.36, 5.4]} />
+      {/* Clickable warm timber plank deck (garden edge x = 20 out to the land, top at y = 0) */}
+      <mesh position={[mid, -0.18, 2.0]} onPointerDown={onGroundClick} receiveShadow>
+        <boxGeometry args={[len, 0.36, 5.4]} />
         <meshStandardMaterial color="#b45309" roughness={0.72} />
       </mesh>
 
       {/* Sturdy dark-wood underside log beams (inset slightly in X for zero overlap) */}
-      <mesh position={[23.75, -0.56, 2.0]}>
-        <boxGeometry args={[7.4, 0.44, 4.9]} />
+      <mesh position={[mid, -0.56, 2.0]}>
+        <boxGeometry args={[len - 0.1, 0.44, 4.9]} />
         <meshStandardMaterial color="#78350f" roughness={0.84} />
       </mesh>
-      <mesh position={[23.75, -0.38, 2.0]}>
-        <boxGeometry args={[7.48, 0.14, 5.55]} />
+      <mesh position={[mid, -0.38, 2.0]}>
+        <boxGeometry args={[len - 0.02, 0.14, 5.55]} />
         <meshStandardMaterial color="#d97706" roughness={0.68} />
       </mesh>
 
-      {/* Tropical golden/amber runner strip (exact 7.5 length along X, proud of y = 0 with zero Z-fighting) */}
-      <mesh position={[23.75, 0.02, 2.0]}>
-        <boxGeometry args={[7.5, 0.01, 2.95]} />
+      {/* Tropical golden/amber runner strip (full bridge length along X, proud of y = 0 with zero Z-fighting) */}
+      <mesh position={[mid, 0.02, 2.0]}>
+        <boxGeometry args={[len, 0.01, 2.95]} />
         <meshStandardMaterial color="#92400e" roughness={0.65} />
       </mesh>
-      <mesh position={[23.75, 0.026, 2.0]} onPointerDown={onGroundClick}>
-        <boxGeometry args={[7.5, 0.014, 2.6]} />
+      <mesh position={[mid, 0.026, 2.0]} onPointerDown={onGroundClick}>
+        <boxGeometry args={[len, 0.014, 2.6]} />
         <meshPhysicalMaterial color="#fbbf24" roughness={0.35} clearcoat={0.35} />
       </mesh>
 
@@ -233,12 +235,12 @@ export function DinoLogBridge3D({
       {[-0.52, 4.52].map((rz) => (
         <group key={`dino-rail-${rz}`}>
           {/* Top & mid rounded bamboo/timber handrails */}
-          <mesh position={[23.75, 0.72, rz]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.085, 0.085, 7.5, 10]} />
+          <mesh position={[mid, 0.72, rz]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.085, 0.085, len, 10]} />
             <meshStandardMaterial color="#92400e" roughness={0.74} />
           </mesh>
-          <mesh position={[23.75, 0.38, rz]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.065, 0.065, 7.5, 10]} />
+          <mesh position={[mid, 0.38, rz]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.065, 0.065, len, 10]} />
             <meshStandardMaterial color="#b45309" roughness={0.76} />
           </mesh>
           {/* Wooden posts + glowing warm amber firefly orbs */}

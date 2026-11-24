@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useLayoutEffect, useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame } from "../landFrame";
 import * as THREE from "three";
 import {
   ExtrudedHeart3D,

@@ -14,6 +14,8 @@ import {
   PastelTreeBatch3D,
 } from "./assets/BatchedProps";
 import type { Vec3 } from "./types";
+import { Land } from "./Land";
+import { landShift, toWorld, type LandId } from "./worldSpace";
 import type { ThreeEvent } from "@react-three/fiber";
 import {
   FluffyCloud3D,
@@ -64,9 +66,29 @@ const GARDEN_TUFT_CLEAR = [
   { x: -11.5, z: 11.6, r: 3.7 },
 ];
 
+// Lands are drawn moved out from the garden (worldSpace.ts). Things outside the <Land> groups are placed
+// where they are drawn: the sky islands move with their land, the rest goes through toWorld.
+const shiftBy = (pos: Vec3, land: LandId | null): Vec3 => {
+  if (!land) return pos;
+  const s = landShift(land);
+  return [pos[0] + s[0], pos[1] + s[1], pos[2] + s[2]];
+};
+const SKY_ISLANDS = SKY_MINI_ISLANDS.map((isl) => ({
+  ...isl,
+  pos: shiftBy(isl.pos, isl.theme === "grass" ? null : isl.theme),
+}));
+const withPos = <T extends { pos: Vec3 }>(spots: T[]) => spots.map((s) => ({ ...s, pos: toWorld(s.pos) }));
+const LAMPS = LAMP_SPOTS.map(toWorld);
+const FLOWERS = withPos(FLOWER_SPOTS);
+const GIFTS = withPos(GIFT_SPOTS);
+const MUSHROOMS = BOUNCE_MUSHROOMS.map(toWorld);
+const BUTTERFLIES = BUTTERFLY_SPOTS.map((b) => ({ ...b, center: toWorld(b.center) }));
+// Sky clouds over the castle move north with it
+const CLOUDS = CLOUD_SPOTS.map((c) => ({ ...c, pos: shiftBy(c.pos, c.pos[2] < -24 ? "castle" : null) }));
+
 // Props standing on the distant sky mini-islands, gathered so each kind is one batched draw
 const islandAt = (pos: Vec3, dx: number, dy: number, dz: number): Vec3 => [pos[0] + dx, pos[1] + dy, pos[2] + dz];
-const SKY_TREES = SKY_MINI_ISLANDS.flatMap((isl) =>
+const SKY_TREES = SKY_ISLANDS.flatMap((isl) =>
   isl.theme === "castle"
     ? [{ pos: islandAt(isl.pos, -0.4, 0.42, 0), color: isl.treeColor, scale: 0.95 }]
     : isl.theme === "melody"
@@ -75,25 +97,25 @@ const SKY_TREES = SKY_MINI_ISLANDS.flatMap((isl) =>
         ? [{ pos: islandAt(isl.pos, 0, 0.4, 0), color: isl.treeColor, scale: 1.0 }]
         : []
 );
-const SKY_PALMS = SKY_MINI_ISLANDS.filter((isl) => isl.theme === "dino").map((isl) => ({
+const SKY_PALMS = SKY_ISLANDS.filter((isl) => isl.theme === "dino").map((isl) => ({
   pos: islandAt(isl.pos, -0.3, 0.42, 0),
   color: isl.treeColor,
   scale: 0.95,
 }));
-const SKY_LOLLIPOPS = SKY_MINI_ISLANDS.filter((isl) => isl.theme === "melody").map((isl) => ({
+const SKY_LOLLIPOPS = SKY_ISLANDS.filter((isl) => isl.theme === "melody").map((isl) => ({
   pos: islandAt(isl.pos, 1.05, 0.42, 0.55),
   color: isl.pos[0] < 0 ? "#ff6eb4" : "#c084fc",
   scale: 0.85,
 }));
-const SKY_MAGIC_CRYSTALS = SKY_MINI_ISLANDS.filter((isl) => isl.theme === "castle").map((isl) =>
+const SKY_MAGIC_CRYSTALS = SKY_ISLANDS.filter((isl) => isl.theme === "castle").map((isl) =>
   islandAt(isl.pos, 1.05, 0.42, 0.5)
 );
-const SKY_ICE_CRYSTALS = SKY_MINI_ISLANDS.filter((isl) => isl.theme === "frozen").map((isl) =>
+const SKY_ICE_CRYSTALS = SKY_ISLANDS.filter((isl) => isl.theme === "frozen").map((isl) =>
   islandAt(isl.pos, 1.1, 0.42, 0.6)
 );
-const GARDEN_TREES = [...TREE_SPOTS, ...SKY_TREES];
-const GARDEN_LOLLIPOPS = [...LOLLIPOP_SPOTS, ...SKY_LOLLIPOPS];
-const GARDEN_MAGIC_CRYSTALS = [...CRYSTAL_SPOTS, ...SKY_MAGIC_CRYSTALS];
+const GARDEN_TREES = [...withPos(TREE_SPOTS), ...SKY_TREES];
+const GARDEN_LOLLIPOPS = [...withPos(LOLLIPOP_SPOTS), ...SKY_LOLLIPOPS];
+const GARDEN_MAGIC_CRYSTALS = [...CRYSTAL_SPOTS.map(toWorld), ...SKY_MAGIC_CRYSTALS];
 
 function CastleWorldTerrainImpl({
   onGroundClick,
@@ -116,7 +138,7 @@ function CastleWorldTerrainImpl({
         </mesh>
 
         {/* Distant Floating Sky Mini-Islands — themed to match their neighboring world! */}
-        {SKY_MINI_ISLANDS.map((isl, idx) => {
+        {SKY_ISLANDS.map((isl, idx) => {
           const isFrozen = isl.theme === "frozen";
           const isCastle = isl.theme === "castle";
           const isDino = isl.theme === "dino";
@@ -251,25 +273,33 @@ function CastleWorldTerrainImpl({
 
       {/* Walkable Royal Bridge & Floating Royal Castle Platform */}
       <RoyalBridge3D onGroundClick={onGroundClick} />
-      <RoyalCastlePlatform3D onGroundClick={onGroundClick} />
+      <Land id="castle">
+        <RoyalCastlePlatform3D onGroundClick={onGroundClick} />
+      </Land>
 
       {/* West Frozen Land Gateway: Ice Archway, Crystal Ice Bridge & Floating Frozen Land */}
       <IceArchway3D position={[-19.6, 0, 2.0]} rotation={[0, Math.PI / 2, 0]} />
       <CrystalIceBridge3D onGroundClick={onGroundClick} />
-      <FrozenLandPlatform3D onGroundClick={onGroundClick} />
+      <Land id="frozen">
+        <FrozenLandPlatform3D onGroundClick={onGroundClick} />
+      </Land>
 
       {/* East Dinosaur Land Gateway: Jungle Archway, Dino Log Bridge & Floating Dinosaur Land */}
       <JungleArchway3D position={[19.6, 0, 2.0]} rotation={[0, Math.PI / 2, 0]} />
       <DinoLogBridge3D onGroundClick={onGroundClick} />
-      <DinoLandPlatform3D onGroundClick={onGroundClick} />
+      <Land id="dino">
+        <DinoLandPlatform3D onGroundClick={onGroundClick} />
+      </Land>
 
       {/* South My Melody & Kuromi Land Gateway: Dual-Theme Ribbon Archway, Pastel Ribbon Bridge & Floating Island */}
       <MelodyKuromiArchway3D position={[0, 0, 20.4]} />
       <PastelRibbonBridge3D onGroundClick={onGroundClick} />
-      <MelodyKuromiPlatform3D onGroundClick={onGroundClick} />
+      <Land id="melody">
+        <MelodyKuromiPlatform3D onGroundClick={onGroundClick} />
+      </Land>
 
       {/* Royal Lamp Posts (main avenue + castle courtyard) */}
-      <FairyLampBatch3D spots={LAMP_SPOTS} />
+      <FairyLampBatch3D spots={LAMPS} />
 
       {/* Central Wishing Fountain */}
       <WishingFountain3D position={[0, 0, 3.6]} />
@@ -280,7 +310,7 @@ function CastleWorldTerrainImpl({
       <CrystalClusterBatch3D spots={SKY_ICE_CRYSTALS} palette="ice" />
 
       {/* Giant Kawaii Flowers (Melody's Meadow & Castle Courtyard planters) */}
-      <GiantFlowerBatch3D spots={FLOWER_SPOTS} />
+      <GiantFlowerBatch3D spots={FLOWERS} />
 
       {/* Giant Swirled Lollipops (Southwest Candy Forest!) */}
       <LollipopBatch3D spots={GARDEN_LOLLIPOPS} />
@@ -289,19 +319,19 @@ function CastleWorldTerrainImpl({
       <CrystalClusterBatch3D spots={GARDEN_MAGIC_CRYSTALS} />
 
       {/* Fluttering 3D Butterflies */}
-      {BUTTERFLY_SPOTS.map((bf, i) => (
+      {BUTTERFLIES.map((bf, i) => (
         <Butterfly3D key={`bf-${i}`} center={bf.center} color={bf.color} speed={bf.speed} />
       ))}
 
       {/* Bouncy Pink Mushrooms */}
-      <BounceMushroomBatch3D spots={BOUNCE_MUSHROOMS} />
+      <BounceMushroomBatch3D spots={MUSHROOMS} />
 
       {/* Gift Boxes & Magic Wands around the Kingdom & Castle Courtyard */}
-      <GiftBoxBatch3D spots={GIFT_SPOTS} />
+      <GiftBoxBatch3D spots={GIFTS} />
       <MagicWand3D position={[-13.0, 1.5, 0.8]} scale={1.1} />
 
       {/* Fluffy Sky Clouds */}
-      {CLOUD_SPOTS.map((cloud, i) => (
+      {CLOUDS.map((cloud, i) => (
         <FluffyCloud3D
           key={`cloud-${i}`}
           position={cloud.pos}

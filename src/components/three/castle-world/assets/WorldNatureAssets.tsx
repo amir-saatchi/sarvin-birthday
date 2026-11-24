@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame } from "../landFrame";
 import * as THREE from "three";
 import type { Vec3 } from "../types";
 

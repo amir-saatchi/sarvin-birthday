@@ -1,7 +1,9 @@
 "use client";
 
+import { bridgeSpan } from "../worldSpace";
 import React, { useMemo, useRef } from "react";
-import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import { type ThreeEvent } from "@react-three/fiber";
+import { useFrame } from "../landFrame";
 import * as THREE from "three";
 import { ExtrudedHeart3D, ExtrudedStar3D } from "../../MagicalDecor3D";
 import type { Vec3 } from "../types";
@@ -403,39 +405,39 @@ export function RoyalCastleRamp3D({
   );
 }
 
-// Walkable Royal Bridge connecting the Main Grass Island (z = -17) to the Royal Castle Platform (z = -24.5)
+// Walkable Royal Bridge from the Main Grass Island (z = -17) out to the moved Royal Castle Platform (see worldSpace.ts)
 export function RoyalBridge3D({
   onGroundClick,
 }: {
   onGroundClick: (e: ThreeEvent<PointerEvent>) => void;
 }) {
-  const postZs = [-17.4, -19.1, -20.8, -22.5, -24.2];
+  const { mid, len, posts: postZs } = bridgeSpan("castle");
 
   return (
     <group>
-      {/* Clickable pastel marble bridge deck — butts cleanly between grass (z = -17.0) and castle (z = -24.5) */}
-      <mesh position={[0, -0.18, -20.75]} onPointerDown={onGroundClick} receiveShadow>
-        <boxGeometry args={[5.4, 0.36, 7.5]} />
+      {/* Clickable pastel marble bridge deck — runs from the grass (z = -17.0) out to the castle */}
+      <mesh position={[0, -0.18, mid]} onPointerDown={onGroundClick} receiveShadow>
+        <boxGeometry args={[5.4, 0.36, len]} />
         <meshPhysicalMaterial color="#fff1f7" roughness={0.28} clearcoat={0.35} />
       </mesh>
 
       {/* Golden & lavender underside support arch beams */}
-      <mesh position={[0, -0.56, -20.75]}>
-        <boxGeometry args={[4.9, 0.44, 7.4]} />
+      <mesh position={[0, -0.56, mid]}>
+        <boxGeometry args={[4.9, 0.44, len - 0.1]} />
         <meshStandardMaterial color="#e9d5ff" roughness={0.5} />
       </mesh>
-      <mesh position={[0, -0.38, -20.75]}>
-        <boxGeometry args={[5.55, 0.14, 7.48]} />
+      <mesh position={[0, -0.38, mid]}>
+        <boxGeometry args={[5.55, 0.14, len - 0.02]} />
         <meshStandardMaterial color="#fde68a" metalness={0.45} roughness={0.25} />
       </mesh>
 
-      {/* Royal pink & gold carpet runner across the bridge (exact z ∈ [-24.5, -17.0], zero overlap!) */}
-      <mesh position={[0, 0.026, -20.75]} onPointerDown={onGroundClick}>
-        <boxGeometry args={[2.6, 0.014, 7.5]} />
+      {/* Royal pink & gold carpet runner across the bridge (full bridge length) */}
+      <mesh position={[0, 0.026, mid]} onPointerDown={onGroundClick}>
+        <boxGeometry args={[2.6, 0.014, len]} />
         <meshStandardMaterial color="#ff6eb4" roughness={0.5} />
       </mesh>
-      <mesh position={[0, 0.02, -20.75]}>
-        <boxGeometry args={[2.95, 0.01, 7.5]} />
+      <mesh position={[0, 0.02, mid]}>
+        <boxGeometry args={[2.95, 0.01, len]} />
         <meshStandardMaterial color="#fde047" roughness={0.4} />
       </mesh>
 
@@ -443,12 +445,12 @@ export function RoyalBridge3D({
       {[-2.52, 2.52].map((rx) => (
         <group key={`rail-${rx}`}>
           {/* Top & mid handrails */}
-          <mesh position={[rx, 0.72, -20.8]}>
-            <boxGeometry args={[0.18, 0.12, 7.6]} />
+          <mesh position={[rx, 0.72, mid]}>
+            <boxGeometry args={[0.18, 0.12, len + 0.1]} />
             <meshStandardMaterial color="#fbcfe8" roughness={0.35} />
           </mesh>
-          <mesh position={[rx, 0.38, -20.8]}>
-            <boxGeometry args={[0.12, 0.1, 7.6]} />
+          <mesh position={[rx, 0.38, mid]}>
+            <boxGeometry args={[0.12, 0.1, len + 0.1]} />
             <meshStandardMaterial color="#fde68a" metalness={0.4} roughness={0.25} />
           </mesh>
           {/* Baluster posts + glowing fairy orbs */}

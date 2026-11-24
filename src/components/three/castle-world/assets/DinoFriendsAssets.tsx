@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useMemo, useRef } from "react";
-import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import { type ThreeEvent } from "@react-three/fiber";
+import { useFrame } from "../landFrame";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { Vec2, Vec3 } from "../types";

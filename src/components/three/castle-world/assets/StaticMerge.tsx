@@ -389,8 +389,19 @@ export function useRaycastOnlyLayer() {
   }, [raycaster]);
 }
 
-/** Merges the static meshes inside it into a few draw calls (see the notes at the top). */
-export function StaticMerge({ children, cellSize = 16 }: { children: React.ReactNode; cellSize?: number }) {
+/**
+ * Merges the static meshes inside it into a few draw calls (see the notes at the top). While
+ * `activeRef.current` is false (a far-away land, see Land.tsx) it stops watching.
+ */
+export function StaticMerge({
+  children,
+  cellSize = 16,
+  activeRef,
+}: {
+  children: React.ReactNode;
+  cellSize?: number;
+  activeRef?: { current: boolean };
+}) {
   const contentRef = useRef<THREE.Group>(null);
   const holderRef = useRef<THREE.Group>(null);
   const mergeRef = useRef<MergeState | null>(null);
@@ -408,7 +419,10 @@ export function StaticMerge({ children, cellSize = 16 }: { children: React.React
     };
   }, [cellSize]);
 
-  useFrame(() => mergeRef.current?.tick());
+  useFrame(() => {
+    if (activeRef && !activeRef.current) return;
+    mergeRef.current?.tick();
+  });
 
   return (
     <>

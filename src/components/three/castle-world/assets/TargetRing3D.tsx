@@ -3,6 +3,7 @@
 import React, { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { warpToWorld } from "../worldSpace";
 
 // Click marker ring on the grass where the player tapped
 export function TargetRing3D({
@@ -19,11 +20,9 @@ export function TargetRing3D({
       return;
     }
     ringRef.current.visible = true;
-    ringRef.current.position.set(
-      targetRef.current.x,
-      targetRef.current.y + 0.06,
-      targetRef.current.z
-    );
+    // The target is in layout coordinates: draw it where that spot is drawn
+    const [x, z] = warpToWorld(targetRef.current.x, targetRef.current.z);
+    ringRef.current.position.set(x, targetRef.current.y + 0.06, z);
     const pulse = 0.85 + Math.sin(state.clock.elapsedTime * 7) * 0.18;
     ringRef.current.scale.set(pulse, pulse, 1);
   });

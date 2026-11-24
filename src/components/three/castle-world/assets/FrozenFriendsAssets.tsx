@@ -1,7 +1,9 @@
 "use client";
 
 import React, { Suspense, useCallback, useLayoutEffect, useMemo, useRef } from "react";
-import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import { type ThreeEvent } from "@react-three/fiber";
+import { useFrame } from "../landFrame";
+import { warpToWorld } from "../worldSpace";
 import { Sparkles, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { Vec3 } from "../types";
@@ -885,7 +887,9 @@ function IceSlide3D({ onGroundClick }: { onGroundClick: GroundClick }) {
   // Tapping the slide itself walks the unicorn to the lift pad
   const toPad = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
-      e.point.set(px, 0, pz);
+      // onGroundClick expects where the pad is drawn (the land is moved out, see worldSpace.ts)
+      const [wx, wz] = warpToWorld(px, pz);
+      e.point.set(wx, 0, wz);
       onGroundClick(e);
     },
     [onGroundClick, px, pz]

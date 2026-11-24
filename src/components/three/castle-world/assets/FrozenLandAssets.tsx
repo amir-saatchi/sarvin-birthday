@@ -1,7 +1,9 @@
 "use client";
 
+import { bridgeSpan } from "../worldSpace";
 import React, { Suspense, useLayoutEffect, useMemo, useRef } from "react";
-import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import { type ThreeEvent } from "@react-three/fiber";
+import { useFrame } from "../landFrame";
 import { Sparkles, useGLTF } from "@react-three/drei";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import * as THREE from "three";
@@ -122,40 +124,40 @@ export function IceArchway3D({
   );
 }
 
-// Walkable Crystal Ice Bridge spanning exact x ∈ [-27.5, -20.0] (center x = -23.75, z = 2.0, length 7.5, width 5.4)
+// Walkable Crystal Ice Bridge from the garden edge (x = -20) out to the moved Frozen Land (z = 2.0, width 5.4; see worldSpace.ts)
 // Butt-jointed with zero overlap and zero Z-fighting against Green Land (x = -20.0) and Frozen Land (x = -27.5)
 export function CrystalIceBridge3D({
   onGroundClick,
 }: {
   onGroundClick: (e: ThreeEvent<PointerEvent>) => void;
 }) {
-  const postXs = [-20.4, -22.05, -23.75, -25.45, -27.1];
+  const { mid, len, posts: postXs } = bridgeSpan("frozen");
 
   return (
     <group>
-      {/* Clickable icy turquoise marble bridge deck (exact x ∈ [-27.5, -20.0], top at y = 0) */}
-      <mesh position={[-23.75, -0.18, 2.0]} onPointerDown={onGroundClick} receiveShadow>
-        <boxGeometry args={[7.5, 0.36, 5.4]} />
+      {/* Clickable icy turquoise marble bridge deck (garden edge x = -20 out to the land, top at y = 0) */}
+      <mesh position={[mid, -0.18, 2.0]} onPointerDown={onGroundClick} receiveShadow>
+        <boxGeometry args={[len, 0.36, 5.4]} />
         <meshPhysicalMaterial color="#e0f7ff" roughness={0.22} clearcoat={0.65} />
       </mesh>
 
       {/* Glacier-blue & silver underside support beams (inset slightly in X for zero overlap) */}
-      <mesh position={[-23.75, -0.56, 2.0]}>
-        <boxGeometry args={[7.4, 0.44, 4.9]} />
+      <mesh position={[mid, -0.56, 2.0]}>
+        <boxGeometry args={[len - 0.1, 0.44, 4.9]} />
         <meshStandardMaterial color="#7dd3fc" roughness={0.45} />
       </mesh>
-      <mesh position={[-23.75, -0.38, 2.0]}>
-        <boxGeometry args={[7.48, 0.14, 5.55]} />
+      <mesh position={[mid, -0.38, 2.0]}>
+        <boxGeometry args={[len - 0.02, 0.14, 5.55]} />
         <meshStandardMaterial color="#e2e8f0" metalness={0.5} roughness={0.22} />
       </mesh>
 
-      {/* Frosty blue & silver runner strip (exact 7.5 length along X, proud of y = 0 with zero Z-fighting) */}
-      <mesh position={[-23.75, 0.02, 2.0]}>
-        <boxGeometry args={[7.5, 0.01, 2.95]} />
+      {/* Frosty blue & silver runner strip (full bridge length along X, proud of y = 0 with zero Z-fighting) */}
+      <mesh position={[mid, 0.02, 2.0]}>
+        <boxGeometry args={[len, 0.01, 2.95]} />
         <meshStandardMaterial color="#e2e8f0" metalness={0.45} roughness={0.25} />
       </mesh>
-      <mesh position={[-23.75, 0.026, 2.0]} onPointerDown={onGroundClick}>
-        <boxGeometry args={[7.5, 0.014, 2.6]} />
+      <mesh position={[mid, 0.026, 2.0]} onPointerDown={onGroundClick}>
+        <boxGeometry args={[len, 0.014, 2.6]} />
         <meshPhysicalMaterial color="#7dd3fc" roughness={0.22} clearcoat={0.75} />
       </mesh>
 
@@ -163,12 +165,12 @@ export function CrystalIceBridge3D({
       {[-0.52, 4.52].map((rz) => (
         <group key={`ice-rail-${rz}`}>
           {/* Top icy-crystal & mid silver handrails */}
-          <mesh position={[-23.75, 0.72, rz]}>
-            <boxGeometry args={[7.5, 0.12, 0.18]} />
+          <mesh position={[mid, 0.72, rz]}>
+            <boxGeometry args={[len, 0.12, 0.18]} />
             <meshPhysicalMaterial color="#bae6fd" roughness={0.2} clearcoat={0.85} />
           </mesh>
-          <mesh position={[-23.75, 0.38, rz]}>
-            <boxGeometry args={[7.5, 0.1, 0.12]} />
+          <mesh position={[mid, 0.38, rz]}>
+            <boxGeometry args={[len, 0.1, 0.12]} />
             <meshStandardMaterial color="#e2e8f0" metalness={0.5} roughness={0.22} />
           </mesh>
           {/* Crystal baluster posts + glowing icy-blue orbs */}
