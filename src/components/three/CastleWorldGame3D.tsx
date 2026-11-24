@@ -10,6 +10,7 @@ import { CastleMusic, castleZoneAt } from "@/lib/castleMusic";
 import { useBirthdayAudio } from "../audio/AudioProvider";
 import { playerWorldPos } from "./castle-world/playerTracker";
 import { CastleWorldScene } from "./castle-world/CastleWorldScene";
+import { WorldWarmup } from "./castle-world/WorldWarmup";
 import { HEART_TRAIL, STAR_SPOTS } from "./castle-world/worldData";
 
 export function CastleWorldGame3D() {
@@ -22,6 +23,8 @@ export function CastleWorldGame3D() {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   // Bumped on restart so the scene (and the unicorn's position refs) remounts from the start spot
   const [round, setRound] = useState(0);
+  // False until the world's shaders are compiled: the canvas draws nothing until then
+  const [worldReady, setWorldReady] = useState(false);
   const toastTimerRef = useRef<number | null>(null);
   // Synchronous guards so a collect fired repeatedly (every frame, StrictMode) is handled once
   const starsSeenRef = useRef<boolean[]>(Array(STAR_SPOTS.length).fill(false));
@@ -167,7 +170,16 @@ export function CastleWorldGame3D() {
             onCollectHeart={handleCollectHeart}
             onTriggerMessage={showToast}
           />
+          <WorldWarmup onReady={() => setWorldReady(true)} />
         </Canvas>
+
+        {!worldReady && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-gradient-to-b from-purple-400 via-pink-200 to-emerald-200">
+            <div className="font-display animate-pulse text-lg font-bold text-purple-900 sm:text-xl">
+              {t.castleWorld.loading}
+            </div>
+          </div>
+        )}
 
         {/* Kawaii Friend / Castle / Fountain Speech Toast */}
         {toastMsg && !won && (
