@@ -8,7 +8,6 @@ import {
   ExtrudedHeart3D,
   ExtrudedStar3D,
   KawaiiBunnyFriend3D,
-  KawaiiGiftBox3D,
 } from "../../MagicalDecor3D";
 import type { Vec3 } from "../types";
 import {
@@ -46,8 +45,13 @@ import {
   TeacupTwirl3D,
   type RibbonFenceRow,
 } from "./MelodyFriendsAssets";
-import { FairyLampPost3D, GiantLollipop3D } from "./WorldLandmarkAssets";
-import { GiantFlower3D, PastelTree3D } from "./WorldNatureAssets";
+import {
+  FairyLampBatch3D,
+  GiantFlowerBatch3D,
+  GiftBoxBatch3D,
+  LollipopBatch3D,
+  PastelTreeBatch3D,
+} from "./BatchedProps";
 
 // Reusable cute 3D ribbon bow accent
 function PastelBow3D({
@@ -1043,27 +1047,11 @@ export function MelodyKuromiPlatform3D({
       <KawaiiBunnyFriend3D variant="purple" position={KUROMI_HOST_POS} rotation={[0, -2.55, 0]} scale={1.5} />
 
       {/* === PASTEL TREES, FLOWERS, LOLLIPOPS, LAMPS & GIFTS === */}
-      {MELODY_TREE_SPOTS.map((tr, idx) => (
-        <PastelTree3D key={`mtree-${idx}`} position={tr.pos} color={tr.color} scale={tr.scale} />
-      ))}
-      {MELODY_FLOWER_SPOTS.map((f, idx) => (
-        <GiantFlower3D key={`mflower-${idx}`} position={f.pos} color={f.color} />
-      ))}
-      {MELODY_LOLLIPOP_SPOTS.map((lol, idx) => (
-        <GiantLollipop3D key={`mlol-${idx}`} position={lol.pos} color={lol.color} scale={lol.scale} />
-      ))}
-      {MELODY_LAMP_SPOTS.map((lp, idx) => (
-        <FairyLampPost3D key={`mlamp-${idx}`} position={lp} />
-      ))}
-      {MELODY_GIFT_SPOTS.map((g, idx) => (
-        <KawaiiGiftBox3D
-          key={`mgift-${idx}`}
-          position={g.pos}
-          scale={g.scale}
-          boxColor={g.boxColor}
-          ribbonColor={g.ribbonColor}
-        />
-      ))}
+      <PastelTreeBatch3D spots={MELODY_TREE_SPOTS} />
+      <GiantFlowerBatch3D spots={MELODY_FLOWER_SPOTS} />
+      <LollipopBatch3D spots={MELODY_LOLLIPOP_SPOTS} />
+      <FairyLampBatch3D spots={MELODY_LAMP_SPOTS} />
+      <GiftBoxBatch3D spots={MELODY_GIFT_SPOTS} />
 
       {/* === PINK & LAVENDER FAIRY SPARKLES === */}
       <Sparkles count={64} position={[-11, 3.6, cz]} scale={[20, 7, 40]} size={4.6} speed={0.36} color="#f472b6" />

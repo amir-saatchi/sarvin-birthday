@@ -17,7 +17,7 @@ import {
   FROZEN_SKATING_POND_R,
   FROZEN_SNOWMAN_POS,
 } from "../worldData";
-import { CrystalCluster3D } from "./WorldLandmarkAssets";
+import { CrystalClusterBatch3D, IceLanternBatch3D } from "./BatchedProps";
 import { FrozenExpansion3D } from "./FrozenFriendsAssets";
 
 // Sparkling icy-blue & silver crystal archway framing the West bridge entrance
@@ -1052,14 +1052,10 @@ export function FrozenLandPlatform3D({
       <OlafCharacter3D position={FROZEN_OLAF_POS} rotation={[0, 0.55, 0]} scale={1.18} />
 
       {/* === ICE LANTERNS === */}
-      {FROZEN_LANTERN_SPOTS.map((lp, idx) => (
-        <IceLantern3D key={`ilantern-${idx}`} position={lp} />
-      ))}
+      <IceLanternBatch3D spots={FROZEN_LANTERN_SPOTS} />
 
       {/* === ICY CRYSTAL CLUSTERS === */}
-      {FROZEN_CRYSTAL_SPOTS.map((cp, idx) => (
-        <CrystalCluster3D key={`icrys-${idx}`} position={cp} palette="ice" />
-      ))}
+      <CrystalClusterBatch3D spots={FROZEN_CRYSTAL_SPOTS} palette="ice" />
 
       {/* === SNOWY MAGICAL SPARKLES === */}
       <Sparkles

@@ -4,7 +4,8 @@ import React, { useCallback, useEffect, useRef } from "react";
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Float, Sparkles } from "@react-three/drei";
 import * as THREE from "three";
-import { ExtrudedHeart3D, ExtrudedStar3D } from "../MagicalDecor3D";
+import { ExtrudedStar3D } from "../MagicalDecor3D";
+import { HeartCoinBatch3D } from "./assets/BatchedProps";
 import { playPopSound, playSparkleSound } from "@/lib/soundEffects";
 import { t } from "@/config/translate";
 import { TargetRing3D, UnicornPlayer3D } from "./assets";
@@ -601,22 +602,7 @@ export function CastleWorldScene({
       )}
 
       {/* Collectible Heart Coin Trails */}
-      {HEART_TRAIL.map(
-        (pos, idx) =>
-          !collectedHearts[idx] && (
-            <group key={`heart-${idx}`} position={pos}>
-              <Float speed={3} rotationIntensity={0} floatIntensity={1} floatingRange={[-0.1, 0.1]}>
-                <ExtrudedHeart3D
-                  position={[0, 0, 0]}
-                  scale={0.64}
-                  color={idx % 2 === 0 ? "#ff6eb4" : "#c084fc"}
-                  emissive={idx % 2 === 0 ? "#ec4899" : "#a855f7"}
-                  emissiveIntensity={0.35}
-                />
-              </Float>
-            </group>
-          )
-      )}
+      <HeartCoinBatch3D spots={HEART_TRAIL} collected={collectedHearts} />
 
       {/* Glowing click-to-move destination ring */}
       <TargetRing3D targetRef={targetPosRef} />

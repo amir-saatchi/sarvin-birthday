@@ -4,6 +4,8 @@ import React, { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { ExtrudedStar3D } from "../../MagicalDecor3D";
+import { GARDEN_FENCE_POST } from "./BatchedProps";
+import { PropBatch } from "./PropBatch";
 import type { Vec3 } from "../types";
 
 // Giant 3D Swirled Lollipop for the Candy Forest!
@@ -186,19 +188,14 @@ export function FenceRow3D({
   count?: number;
 }) {
   const posts = useMemo(
-    () => Array.from({ length: count }, (_, i) => (i - (count - 1) / 2) * 1.15),
+    () => Array.from({ length: count }, (_, i) => ({ pos: [(i - (count - 1) / 2) * 1.15, 0, 0] as Vec3 })),
     [count]
   );
   const totalLen = (count - 1) * 1.15 + 0.3;
 
   return (
     <group position={position} rotation={rotation}>
-      {posts.map((px) => (
-        <mesh key={px} position={[px, 0.38, 0]}>
-          <boxGeometry args={[0.16, 0.76, 0.16]} />
-          <meshStandardMaterial color="#fef3c7" roughness={0.45} />
-        </mesh>
-      ))}
+      <PropBatch recipe={GARDEN_FENCE_POST} items={posts} />
       <mesh position={[0, 0.54, 0]}>
         <boxGeometry args={[totalLen, 0.1, 0.09]} />
         <meshStandardMaterial color="#fbcfe8" roughness={0.4} />

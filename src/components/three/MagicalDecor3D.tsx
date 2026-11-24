@@ -53,8 +53,8 @@ export function useStarGeometry(outerR = 0.36, innerR = 0.16, depth = 0.1) {
   return useMemo(() => getStarGeometry(outerR, innerR, depth), [outerR, innerR, depth]);
 }
 
-function getHeartGeometry(scale: number, depth: number) {
-  const key = `${scale}|${depth}`;
+export function getHeartGeometry(scale: number, depth: number, lowPoly = false) {
+  const key = `${scale}|${depth}|${lowPoly}`;
   let geo = heartGeometryCache.get(key);
   if (!geo) {
     const shape = new THREE.Shape();
@@ -83,7 +83,9 @@ function getHeartGeometry(scale: number, depth: number) {
     geo = new THREE.ExtrudeGeometry(shape, {
       depth,
       bevelEnabled: true,
-      bevelSegments: 4,
+      // Low-poly variant for the many small heart coins
+      curveSegments: lowPoly ? 6 : 12,
+      bevelSegments: lowPoly ? 2 : 4,
       steps: 1,
       bevelSize: 0.05,
       bevelThickness: 0.05,

@@ -2,35 +2,38 @@
 
 import React from "react";
 import { GrassDeck3D, GrassTufts3D } from "./assets/GrassAssets";
+import {
+  BounceMushroomBatch3D,
+  CrystalClusterBatch3D,
+  FairyLampBatch3D,
+  GiantFlowerBatch3D,
+  GiftBoxBatch3D,
+  LollipopBatch3D,
+  PalmTreeBatch3D,
+  PastelTreeBatch3D,
+} from "./assets/BatchedProps";
+import type { Vec3 } from "./types";
 import type { ThreeEvent } from "@react-three/fiber";
 import {
   FluffyCloud3D,
-  KawaiiGiftBox3D,
   MagicWand3D,
   RainbowArch3D,
 } from "../MagicalDecor3D";
 import {
-  BounceMushroom3D,
   Butterfly3D,
-  CrystalCluster3D,
   CrystalIceBridge3D,
   DinoLandPlatform3D,
   DinoLogBridge3D,
-  FairyLampPost3D,
   FenceRow3D,
   FrozenLandPlatform3D,
   FrozenPineTree3D,
-  GiantFlower3D,
-  GiantLollipop3D,
   IceArchway3D,
   JungleArchway3D,
   MelodyKuromiArchway3D,
   MelodyKuromiPlatform3D,
   PastelRibbonBridge3D,
-  PastelTree3D,
   RoyalBridge3D,
   RoyalCastlePlatform3D,
-  TropicalPalmTree3D,
   WishingFountain3D,
 } from "./assets";
 import {
@@ -59,6 +62,37 @@ const GARDEN_TUFT_CLEAR = [
   { x: 11.6, z: 11.4, r: 3.9 },
   { x: -11.5, z: 11.6, r: 3.7 },
 ];
+
+// Props standing on the distant sky mini-islands, gathered so each kind is one batched draw
+const islandAt = (pos: Vec3, dx: number, dy: number, dz: number): Vec3 => [pos[0] + dx, pos[1] + dy, pos[2] + dz];
+const SKY_TREES = SKY_MINI_ISLANDS.flatMap((isl) =>
+  isl.theme === "castle"
+    ? [{ pos: islandAt(isl.pos, -0.4, 0.42, 0), color: isl.treeColor, scale: 0.95 }]
+    : isl.theme === "melody"
+      ? [{ pos: islandAt(isl.pos, -0.55, 0.42, -0.2), color: isl.treeColor, scale: 0.95 }]
+      : isl.theme === "grass"
+        ? [{ pos: islandAt(isl.pos, 0, 0.4, 0), color: isl.treeColor, scale: 1.0 }]
+        : []
+);
+const SKY_PALMS = SKY_MINI_ISLANDS.filter((isl) => isl.theme === "dino").map((isl) => ({
+  pos: islandAt(isl.pos, -0.3, 0.42, 0),
+  color: isl.treeColor,
+  scale: 0.95,
+}));
+const SKY_LOLLIPOPS = SKY_MINI_ISLANDS.filter((isl) => isl.theme === "melody").map((isl) => ({
+  pos: islandAt(isl.pos, 1.05, 0.42, 0.55),
+  color: isl.pos[0] < 0 ? "#ff6eb4" : "#c084fc",
+  scale: 0.85,
+}));
+const SKY_MAGIC_CRYSTALS = SKY_MINI_ISLANDS.filter((isl) => isl.theme === "castle").map((isl) =>
+  islandAt(isl.pos, 1.05, 0.42, 0.5)
+);
+const SKY_ICE_CRYSTALS = SKY_MINI_ISLANDS.filter((isl) => isl.theme === "frozen").map((isl) =>
+  islandAt(isl.pos, 1.1, 0.42, 0.6)
+);
+const GARDEN_TREES = [...TREE_SPOTS, ...SKY_TREES];
+const GARDEN_LOLLIPOPS = [...LOLLIPOP_SPOTS, ...SKY_LOLLIPOPS];
+const GARDEN_MAGIC_CRYSTALS = [...CRYSTAL_SPOTS, ...SKY_MAGIC_CRYSTALS];
 
 function CastleWorldTerrainImpl({
   onGroundClick,
@@ -120,30 +154,8 @@ function CastleWorldTerrainImpl({
                 <boxGeometry args={[isl.size - 0.3, 1.4, isl.size - 0.3]} />
                 <meshStandardMaterial color={cliffColor} roughness={isFrozen ? 0.35 : 0.85} />
               </mesh>
-              {isFrozen ? (
-                <>
-                  <FrozenPineTree3D position={[-0.4, 0.42, 0]} color={isl.treeColor} scale={1.05} />
-                  <CrystalCluster3D position={[1.1, 0.42, 0.6]} palette="ice" />
-                </>
-              ) : isCastle ? (
-                <>
-                  <PastelTree3D position={[-0.4, 0.42, 0]} color={isl.treeColor} scale={0.95} />
-                  <CrystalCluster3D position={[1.05, 0.42, 0.5]} palette="magic" />
-                </>
-              ) : isDino ? (
-                <TropicalPalmTree3D position={[-0.3, 0.42, 0]} color={isl.treeColor} scale={0.95} />
-              ) : isMelody ? (
-                <>
-                  <PastelTree3D position={[-0.55, 0.42, -0.2]} color={isl.treeColor} scale={0.95} />
-                  <GiantLollipop3D
-                    position={[1.05, 0.42, 0.55]}
-                    color={isWestMelody ? "#ff6eb4" : "#c084fc"}
-                    scale={0.85}
-                  />
-                </>
-              ) : (
-                <PastelTree3D position={[0, 0.4, 0]} color={isl.treeColor} scale={1.0} />
-              )}
+              {/* Trees, palms, lollipops & crystals on the islands are drawn by the batches below */}
+              {isFrozen && <FrozenPineTree3D position={[-0.4, 0.42, 0]} color={isl.treeColor} scale={1.05} />}
             </group>
           );
         })}
@@ -256,37 +268,24 @@ function CastleWorldTerrainImpl({
       <MelodyKuromiPlatform3D onGroundClick={onGroundClick} />
 
       {/* Royal Lamp Posts (main avenue + castle courtyard) */}
-      {LAMP_SPOTS.map((lp, i) => (
-        <FairyLampPost3D key={`lamp-${i}`} position={lp} />
-      ))}
+      <FairyLampBatch3D spots={LAMP_SPOTS} />
 
       {/* Central Wishing Fountain */}
       <WishingFountain3D position={[0, 0, 3.6]} />
 
       {/* Cotton-Candy Trees */}
-      {TREE_SPOTS.map((tr, i) => (
-        <PastelTree3D key={`tree-${i}`} position={tr.pos} color={tr.color} scale={tr.scale} />
-      ))}
+      <PastelTreeBatch3D spots={GARDEN_TREES} />
+      <PalmTreeBatch3D spots={SKY_PALMS} />
+      <CrystalClusterBatch3D spots={SKY_ICE_CRYSTALS} palette="ice" />
 
       {/* Giant Kawaii Flowers (Melody's Meadow & Castle Courtyard planters) */}
-      {FLOWER_SPOTS.map((fl, i) => (
-        <GiantFlower3D key={`fl-${i}`} position={fl.pos} color={fl.color} />
-      ))}
+      <GiantFlowerBatch3D spots={FLOWER_SPOTS} />
 
       {/* Giant Swirled Lollipops (Southwest Candy Forest!) */}
-      {LOLLIPOP_SPOTS.map((lol, i) => (
-        <GiantLollipop3D
-          key={`lol-${i}`}
-          position={lol.pos}
-          color={lol.color}
-          scale={lol.scale}
-        />
-      ))}
+      <LollipopBatch3D spots={GARDEN_LOLLIPOPS} />
 
       {/* Glowing Magic Crystal Clusters (East Kuromi Plaza!) */}
-      {CRYSTAL_SPOTS.map((cp, i) => (
-        <CrystalCluster3D key={`crys-${i}`} position={cp} />
-      ))}
+      <CrystalClusterBatch3D spots={GARDEN_MAGIC_CRYSTALS} />
 
       {/* Fluttering 3D Butterflies */}
       {BUTTERFLY_SPOTS.map((bf, i) => (
@@ -294,20 +293,10 @@ function CastleWorldTerrainImpl({
       ))}
 
       {/* Bouncy Pink Mushrooms */}
-      {BOUNCE_MUSHROOMS.map((m, i) => (
-        <BounceMushroom3D key={`mush-${i}`} position={m} />
-      ))}
+      <BounceMushroomBatch3D spots={BOUNCE_MUSHROOMS} />
 
       {/* Gift Boxes & Magic Wands around the Kingdom & Castle Courtyard */}
-      {GIFT_SPOTS.map((g, i) => (
-        <KawaiiGiftBox3D
-          key={`gift-${i}`}
-          position={g.pos}
-          scale={g.scale}
-          boxColor={g.boxColor}
-          ribbonColor={g.ribbonColor}
-        />
-      ))}
+      <GiftBoxBatch3D spots={GIFT_SPOTS} />
       <MagicWand3D position={[-13.0, 1.5, 0.8]} scale={1.1} />
 
       {/* Fluffy Sky Clouds */}

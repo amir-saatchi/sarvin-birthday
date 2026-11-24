@@ -30,7 +30,8 @@ import {
   SwanPond3D,
   Topiary3D,
 } from "./CastleGardenAssets";
-import { PastelTree3D } from "./WorldNatureAssets";
+import { MERLON, PastelTreeBatch3D } from "./BatchedProps";
+import { PropBatch } from "./PropBatch";
 
 // Reusable fairytale castle tower with pastel marble shaft, glowing arched windows, conical spire & waving flag
 function CastleTower3D({
@@ -134,8 +135,10 @@ function CastleWallSegment3D({
 }) {
   const merlons = useMemo(() => {
     const count = Math.max(3, Math.floor(length / 1.35));
-    return Array.from({ length: count }, (_, i) => (i - (count - 1) / 2) * (length / count));
-  }, [length]);
+    return Array.from({ length: count }, (_, i) => ({
+      pos: [(i - (count - 1) / 2) * (length / count), height + 0.42, 0] as Vec3,
+    }));
+  }, [length, height]);
 
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
@@ -155,12 +158,7 @@ function CastleWallSegment3D({
         <meshStandardMaterial color="#fde68a" metalness={0.45} roughness={0.25} />
       </mesh>
       {/* Battlements / crenellations */}
-      {merlons.map((mx, idx) => (
-        <mesh key={`merlon-${idx}`} position={[mx, height + 0.42, 0]}>
-          <boxGeometry args={[0.68, 0.52, 0.88]} />
-          <meshPhysicalMaterial color="#ffe4f3" roughness={0.28} clearcoat={0.3} />
-        </mesh>
-      ))}
+      <PropBatch recipe={MERLON} items={merlons} />
     </group>
   );
 }
@@ -839,9 +837,7 @@ export function RoyalCastlePlatform3D({
       <BirthdayCake3D position={CASTLE_CAKE_POS} />
       <RoyalCrownPedestal3D position={CASTLE_CROWN_POS} />
       <SwanPond3D position={CASTLE_SWAN_POND_POS} />
-      {CASTLE_TREE_SPOTS.map((tr, i) => (
-        <PastelTree3D key={`ctree-${i}`} position={tr.pos} color={tr.color} scale={tr.scale} />
-      ))}
+      <PastelTreeBatch3D spots={CASTLE_TREE_SPOTS} />
     </group>
   );
 }

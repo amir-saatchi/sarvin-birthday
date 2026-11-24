@@ -39,7 +39,13 @@ import {
   CIRCLE_OBSTACLES,
 } from "../worldData";
 import { GrassDeck3D, GrassTufts3D } from "./GrassAssets";
-import { GiantFlower3D } from "./WorldNatureAssets";
+import {
+  GiantFlowerBatch3D,
+  JUNGLE_FENCE_POST,
+  JungleLanternBatch3D,
+  PalmTreeBatch3D,
+} from "./BatchedProps";
+import { PropBatch } from "./PropBatch";
 import {
   BABY_PINK_DINO_COLORS,
   BounceEgg3D,
@@ -1087,7 +1093,10 @@ function JungleFenceRow3D({
 }) {
   const posts = useMemo(() => {
     const count = Math.max(2, Math.round(length / 1.5) + 1);
-    return Array.from({ length: count }, (_, i) => (i / (count - 1) - 0.5) * length);
+    return Array.from({ length: count }, (_, i) => ({
+      pos: [(i / (count - 1) - 0.5) * length, 0, 0] as Vec3,
+      tint: i % 2 === 0 ? "#4ade80" : "#22c55e",
+    }));
   }, [length]);
 
   return (
@@ -1102,18 +1111,7 @@ function JungleFenceRow3D({
         <meshStandardMaterial color="#92400e" roughness={0.78} />
       </mesh>
       {/* Wooden bamboo fence posts with cute tropical leaf caps */}
-      {posts.map((px, idx) => (
-        <group key={`jfpost-${idx}`} position={[px, 0, 0]}>
-          <mesh position={[0, 0.42, 0]}>
-            <cylinderGeometry args={[0.085, 0.105, 0.84, 8]} />
-            <meshStandardMaterial color="#78350f" roughness={0.8} />
-          </mesh>
-          <mesh position={[0, 0.86, 0]} scale={[1.2, 0.55, 1.2]}>
-            <sphereGeometry args={[0.1, 8, 8]} />
-            <meshStandardMaterial color={idx % 2 === 0 ? "#4ade80" : "#22c55e"} roughness={0.55} />
-          </mesh>
-        </group>
-      ))}
+      <PropBatch recipe={JUNGLE_FENCE_POST} items={posts} />
     </group>
   );
 }
@@ -1271,14 +1269,7 @@ export function DinoLandPlatform3D({
       <JungleFenceRow3D position={[28.1, 0, 14.6]} length={19.6} rotationY={Math.PI / 2} />
 
       {/* === TROPICAL PALM TREES === */}
-      {DINO_PALM_SPOTS.map((tree, idx) => (
-        <TropicalPalmTree3D
-          key={`dpalm-${idx}`}
-          position={tree.pos}
-          color={tree.color}
-          scale={tree.scale}
-        />
-      ))}
+      <PalmTreeBatch3D spots={DINO_PALM_SPOTS} />
 
       {/* === 3 ADORABLE GLOSSY KAWAII DINOSAURS === */}
       <HeraBronto3D position={DINO_BRONTO_POS} rotation={[0, DINO_BRONTO_YAW, 0]} scale={1.15} />
@@ -1333,14 +1324,10 @@ export function DinoLandPlatform3D({
       <DinoNest3D position={DINO_NEST_POS} />
 
       {/* === JUNGLE FIREFLY LANTERNS === */}
-      {DINO_LANTERN_SPOTS.map((lp, idx) => (
-        <JungleLantern3D key={`dlantern-${idx}`} position={lp} />
-      ))}
+      <JungleLanternBatch3D spots={DINO_LANTERN_SPOTS} />
 
       {/* === TROPICAL FLOWERS === */}
-      {DINO_FLOWER_SPOTS.map((fl, idx) => (
-        <GiantFlower3D key={`dflower-${idx}`} position={fl.pos} color={fl.color} />
-      ))}
+      <GiantFlowerBatch3D spots={DINO_FLOWER_SPOTS} />
 
       {/* === GOLDEN JUNGLE FIREFLY SPARKLES === */}
       <Sparkles
