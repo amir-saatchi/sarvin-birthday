@@ -354,24 +354,18 @@ export function FairyPianoGame3D() {
           <ConcertStage3D bouncePulse={bouncePulse} celebrating={won} bursts={bursts} />
         </Canvas>
 
-        {/* Win Celebration Overlay */}
+        {/* Win banner: one slim row at the top, so the dancing unicorn on the short stage stays in view */}
         {won && (
-          <div className="absolute inset-x-3 top-4 z-20 flex flex-col items-center text-center">
-            <div className="kawaii-card max-w-sm rounded-[1.75rem] p-4 sm:p-5">
-              <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-700">
-                <Trophy className="h-4 w-4 text-amber-500" />
-                {t.fairyPiano.winBadge}
-              </div>
-              <h2 className="font-display mb-1 text-xl font-bold text-purple-900 sm:text-2xl">
+          <div className="absolute inset-x-2 top-2 z-20 flex justify-center">
+            <div className="kawaii-card flex items-center gap-2 rounded-full py-1.5 ps-3 pe-1.5 sm:gap-3">
+              <Trophy className="h-5 w-5 shrink-0 text-amber-500" />
+              <h2 className="font-display text-base font-bold whitespace-nowrap text-purple-900 sm:text-xl">
                 {t.fairyPiano.winTitle}
               </h2>
-              <p className="mb-3 text-xs font-bold text-purple-700 sm:text-sm">
-                {t.fairyPiano.winMessage}
-              </p>
               <button
                 type="button"
                 onClick={handleResetLearn}
-                className="font-display inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-5 py-2 text-sm font-bold text-white shadow-md transition hover:scale-105 active:scale-95"
+                className="font-display inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-4 text-sm font-bold whitespace-nowrap text-white shadow-md transition hover:scale-105 active:scale-95"
               >
                 <RotateCcw className="h-4 w-4" />
                 {t.fairyPiano.playAgain}
