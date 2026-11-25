@@ -74,6 +74,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const playSynthNoteRef = useRef<() => void>(() => {});
   const playSynthNote = useCallback(() => {
     if (!isPlayingRef.current) return;
 
@@ -126,8 +127,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       harmonic.stop(now + Math.max(dur * 0.75, 0.22));
     }
 
-    synthTimerRef.current = window.setTimeout(playSynthNote, dur * 1000);
+    // Reschedule through a ref: a useCallback can't reference itself before it is declared
+    synthTimerRef.current = window.setTimeout(() => playSynthNoteRef.current(), dur * 1000);
   }, []);
+
+  useEffect(() => {
+    playSynthNoteRef.current = playSynthNote;
+  }, [playSynthNote]);
 
   // Manage MP3 or Synth playback when state changes
   useEffect(() => {

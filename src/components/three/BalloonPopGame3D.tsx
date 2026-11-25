@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Sparkles } from "@react-three/drei";
 import * as THREE from "three";
@@ -26,9 +26,18 @@ const BALLOON_COLORS = [
   "#6ee7b7", // Mint pastel
 ];
 
+// How many balloons float at once: phones get fewer than wide screens
+const LANES_WIDE = 6;
+const LANES_NARROW = 5;
+
+// Live positions of every balloon on screen, shared so each one can find a free spot to spawn
+// and nudge itself sideways away from neighbours (so they never pass through each other)
+type BalloonRegistry = Map<number, { x: number; y: number }>;
+// Golden stars (worth 2 points) rise this much faster than balloons, on average
+const STAR_SPEED_BOOST = 1.6;
+
 interface BalloonData {
   id: number;
-  xNorm: number; // -1 to 1 normalized horizontal lane so it always fits any screen width
   y: number;
   z: number;
   speed: number;
@@ -52,9 +61,9 @@ function createBalloon(id: number, startRandomY: boolean): BalloonData {
   const isStar = shape === "star";
   return {
     id,
-    xNorm: (Math.random() - 0.5) * 1.75, // stays within [-0.875, +0.875] of safe visible width
     y: startRandomY ? (Math.random() - 0.5) * 4.2 : -3.9 - Math.random() * 1.6,
-    z: (Math.random() - 0.5) * 1.2,
+    // Small depth variety only: a large z spread makes neighbouring lanes look overlapped
+    z: (Math.random() - 0.5) * 0.3,
     speed: 0.72 + Math.random() * 0.6,
     swayOffset: Math.random() * Math.PI * 2,
     color: isStar
@@ -65,16 +74,25 @@ function createBalloon(id: number, startRandomY: boolean): BalloonData {
   };
 }
 
+// Burst directions are fixed (a pure, deterministic spread), computed once for every burst
+const BURST_DIRS: [number, number, number][] = Array.from({ length: 8 }, (_, i) => {
+  const angle = (i / 8) * Math.PI * 2;
+  return [Math.cos(angle), Math.sin(angle), (((i * 5) % 8) / 7 - 0.5) * 0.6];
+});
+
+// Geometries shared by every balloon and burst (rendered with dispose={null}), so popping a
+// balloon and spawning its replacement never builds or uploads new geometry
+const BURST_GEO = new THREE.OctahedronGeometry(0.13, 0);
+const HITBOX_GEO = new THREE.SphereGeometry(0.78, 10, 10);
+const BODY_GEO = new THREE.SphereGeometry(0.52, 22, 22);
+const HIGHLIGHT_GEO = new THREE.SphereGeometry(0.1, 10, 10);
+const KNOT_GEO = new THREE.ConeGeometry(0.09, 0.14, 12);
+const COLLAR_GEO = new THREE.TorusGeometry(0.06, 0.02, 8, 16);
+const STRING_GEO = new THREE.CylinderGeometry(0.012, 0.012, 0.84, 6);
+
 function PopBurst3D({ burst }: { burst: BurstData }) {
   const groupRef = useRef<THREE.Group>(null);
-  const dirs = useMemo(
-    () =>
-      Array.from({ length: 8 }, (_, i) => {
-        const angle = (i / 8) * Math.PI * 2;
-        return [Math.cos(angle), Math.sin(angle), (Math.random() - 0.5) * 0.6];
-      }),
-    []
-  );
+  const dirs = BURST_DIRS;
 
   useFrame(() => {
     if (!groupRef.current) return;
@@ -91,8 +109,7 @@ function PopBurst3D({ burst }: { burst: BurstData }) {
   return (
     <group ref={groupRef} position={burst.position}>
       {dirs.map((_, idx) => (
-        <mesh key={idx}>
-          <octahedronGeometry args={[0.13, 0]} />
+        <mesh key={idx} geometry={BURST_GEO} dispose={null}>
           <meshStandardMaterial
             color={idx % 2 === 0 ? burst.color : "#fef08a"}
             emissive={burst.color}
@@ -104,58 +121,135 @@ function PopBurst3D({ burst }: { burst: BurstData }) {
   );
 }
 
+// Pick a random spawn x, preferring the candidate farthest from balloons at a similar height,
+// so new balloons come up all over the sky instead of from a few fixed spots.
+function pickSpawnX(registry: BalloonRegistry, selfId: number, y: number, spread: number) {
+  let bestX = 0;
+  let bestScore = -1;
+  for (let i = 0; i < 8; i++) {
+    const x = (Math.random() * 2 - 1) * spread;
+    let nearest = Infinity;
+    registry.forEach((other, id) => {
+      if (id === selfId || Math.abs(other.y - y) > 2.2) return;
+      nearest = Math.min(nearest, Math.abs(other.x - x));
+    });
+    if (nearest > bestScore) {
+      bestScore = nearest;
+      bestX = x;
+    }
+  }
+  return bestX;
+}
+
 function FloatingBalloon3D({
   data,
+  registryRef,
+  spread,
   halfWidth,
   balloonScale,
+  speedMul,
   onPop,
 }: {
   data: BalloonData;
+  registryRef: React.RefObject<BalloonRegistry>;
+  spread: number;
   halfWidth: number;
   balloonScale: number;
+  speedMul: number;
   onPop: (id: number, pos: [number, number, number], color: string, isStar: boolean) => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const posRef = useRef({ xNorm: data.xNorm, y: data.y, z: data.z });
+  // x/y are the live position (also the registry entry); homeX is where it drifts around
+  const posRef = useRef<{ x: number; y: number; z: number; homeX: number | null }>({
+    x: 0,
+    y: data.y,
+    z: data.z,
+    homeX: null,
+  });
+
+  // Leave the shared registry when popped or unmounted
+  useEffect(() => {
+    const registry = registryRef.current;
+    const id = data.id;
+    return () => {
+      registry.delete(id);
+    };
+  }, [registryRef, data.id]);
 
   useFrame((state, delta) => {
     if (!groupRef.current) return;
+    const registry = registryRef.current;
+    const p = posRef.current;
     const dt = Math.min(delta, 0.05);
-    posRef.current.y += data.speed * dt;
-    if (posRef.current.y > 4.2) {
-      posRef.current.y = -4.0;
-      posRef.current.xNorm = (Math.random() - 0.5) * 1.75;
+    const t = state.clock.elapsedTime;
+
+    if (p.homeX === null) {
+      p.homeX = pickSpawnX(registry, data.id, p.y, spread);
+      p.x = p.homeX;
+      registry.set(data.id, p);
     }
-    const baseX = posRef.current.xNorm * halfWidth;
-    const swayAmt = Math.min(0.32, halfWidth * 0.14);
-    const swayX = THREE.MathUtils.clamp(
-      baseX + Math.sin(state.clock.elapsedTime * 1.5 + data.swayOffset) * swayAmt,
+
+    // Stars are faster and dart in surges (quick burst, slow drift, burst again) instead of
+    // rising at a steady pace. The surge factor stays between 0.25 and 1.75, so they never stop.
+    const surge = data.isStar ? 1 + 0.75 * Math.sin(t * 3.2 + data.swayOffset) : 1;
+    const vy = data.speed * (data.isStar ? STAR_SPEED_BOOST : 1) * surge * speedMul;
+    p.y += vy * dt;
+    if (p.y > 4.2) {
+      // Floated away: come back up from a fresh spot
+      p.y = -4.0;
+      p.homeX = pickSpawnX(registry, data.id, p.y, spread);
+    }
+
+    // Nudge sideways away from any neighbour that is close in height, so a fast star bumps past
+    // a slow balloon instead of flying through it. Both sides push, each by half the overlap.
+    const minDx = 1.0 * balloonScale;
+    const zoneDy = 2.0 * balloonScale;
+    const pushRate = Math.min(1, dt * 10) * 0.5;
+    let homeX = p.homeX;
+    registry.forEach((other, id) => {
+      if (id === data.id || Math.abs(p.y - other.y) > zoneDy) return;
+      const dx = p.x - other.x;
+      const adx = Math.abs(dx);
+      if (adx >= minDx) return;
+      const dir = adx > 1e-4 ? Math.sign(dx) : data.id > id ? 1 : -1;
+      homeX += dir * (minDx - adx) * pushRate;
+    });
+    p.homeX = THREE.MathUtils.clamp(homeX, -spread, spread);
+
+    // Every balloon sways with the same phase (like one breeze); stars add a small zig-zag
+    const starWiggle = data.isStar ? Math.sin(t * 4.6 + data.swayOffset) * 0.1 : 0;
+    p.x = THREE.MathUtils.clamp(
+      p.homeX + Math.sin(t * 1.2) * 0.18 + starWiggle,
       -halfWidth,
       halfWidth
     );
-    groupRef.current.position.set(swayX, posRef.current.y, posRef.current.z);
-    groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 1.8 + data.swayOffset) * 0.1;
+    groupRef.current.position.set(p.x, p.y, p.z);
+    groupRef.current.rotation.z = Math.sin(t * 1.8 + data.swayOffset) * 0.1;
     if (data.isStar) {
-      groupRef.current.rotation.y += dt * 1.6;
+      // Spin speeds up with each surge
+      groupRef.current.rotation.y += dt * (1.6 + 2.2 * surge);
     }
   });
 
   const handleTap = (e: { stopPropagation: () => void }) => {
     e.stopPropagation();
+    // The popped balloon unmounts, so its pointer-out never fires: reset the hover cursor here
+    document.body.style.cursor = "auto";
     const currentPos: [number, number, number] = groupRef.current
       ? [
           groupRef.current.position.x,
           groupRef.current.position.y,
           groupRef.current.position.z,
         ]
-      : [posRef.current.xNorm * halfWidth, posRef.current.y, posRef.current.z];
+      : [posRef.current.x, posRef.current.y, posRef.current.z];
     onPop(data.id, currentPos, data.color, data.isStar);
   };
 
   return (
     <group
       ref={groupRef}
-      position={[data.xNorm * halfWidth, data.y, data.z]}
+      // useFrame places it (picking a free spot) before the first frame is drawn
+      position={[0, data.y, data.z]}
       scale={balloonScale}
       onPointerDown={handleTap}
       onPointerOver={(e) => {
@@ -167,8 +261,7 @@ function FloatingBalloon3D({
       }}
     >
       {/* Generous invisible hitbox for 5-year-old tapping */}
-      <mesh visible={false}>
-        <sphereGeometry args={[0.9, 10, 10]} />
+      <mesh visible={false} geometry={HITBOX_GEO} dispose={null}>
         <meshBasicMaterial />
       </mesh>
 
@@ -178,16 +271,14 @@ function FloatingBalloon3D({
         <group>
           <ExtrudedHeart3D scale={1.15} color={data.color} emissive={data.color} emissiveIntensity={0.18} />
           {/* Balloon string */}
-          <mesh position={[0, -0.92, 0]}>
-            <cylinderGeometry args={[0.012, 0.012, 0.85, 6]} />
+          <mesh position={[0, -0.92, 0]} geometry={STRING_GEO} dispose={null}>
             <meshStandardMaterial color="#ffffff" />
           </mesh>
         </group>
       ) : (
         <group>
           {/* Glossy toy-vinyl balloon body */}
-          <mesh scale={[0.92, 1.12, 0.92]}>
-            <sphereGeometry args={[0.52, 26, 26]} />
+          <mesh scale={[0.92, 1.12, 0.92]} geometry={BODY_GEO} dispose={null}>
             <meshPhysicalMaterial
               color={data.color}
               roughness={0.12}
@@ -197,22 +288,18 @@ function FloatingBalloon3D({
             />
           </mesh>
           {/* Cute glossy highlight dot */}
-          <mesh position={[-0.19, 0.23, 0.34]} scale={[0.7, 1.1, 0.5]}>
-            <sphereGeometry args={[0.1, 12, 12]} />
+          <mesh position={[-0.19, 0.23, 0.34]} scale={[0.7, 1.1, 0.5]} geometry={HIGHLIGHT_GEO} dispose={null}>
             <meshBasicMaterial color="#ffffff" transparent opacity={0.75} />
           </mesh>
           {/* Balloon knot + tiny satin ribbon collar */}
-          <mesh position={[0, -0.6, 0]}>
-            <coneGeometry args={[0.09, 0.14, 12]} />
+          <mesh position={[0, -0.6, 0]} geometry={KNOT_GEO} dispose={null}>
             <meshPhysicalMaterial color={data.color} roughness={0.25} clearcoat={0.6} />
           </mesh>
-          <mesh position={[0, -0.65, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.06, 0.02, 8, 16]} />
+          <mesh position={[0, -0.65, 0]} rotation={[Math.PI / 2, 0, 0]} geometry={COLLAR_GEO} dispose={null}>
             <meshStandardMaterial color="#fde047" />
           </mesh>
           {/* Balloon string */}
-          <mesh position={[0, -1.06, 0]}>
-            <cylinderGeometry args={[0.012, 0.012, 0.82, 6]} />
+          <mesh position={[0, -1.06, 0]} geometry={STRING_GEO} dispose={null}>
             <meshStandardMaterial color="#ffffff" />
           </mesh>
         </group>
@@ -224,10 +311,12 @@ function FloatingBalloon3D({
 function BalloonWorld({
   balloons,
   bursts,
+  speedMul,
   onPop,
 }: {
   balloons: BalloonData[];
   bursts: BurstData[];
+  speedMul: number;
   onPop: (id: number, pos: [number, number, number], color: string, isStar: boolean) => void;
 }) {
   const { viewport } = useThree();
@@ -235,6 +324,10 @@ function BalloonWorld({
   const balloonScale = isNarrow ? 0.84 : 1;
   const halfWidth = Math.max(1.35, Math.min(3.5, viewport.width / 2 - 0.65));
   const rainbowScale = isNarrow ? 1.05 : 1.5;
+  const visibleCount = isNarrow ? LANES_NARROW : LANES_WIDE;
+  // Balloons drift anywhere across the safe width, minus room for the shared sway
+  const spread = halfWidth - 0.15;
+  const registryRef = useRef<BalloonRegistry>(new Map());
 
   return (
     <>
@@ -269,12 +362,15 @@ function BalloonWorld({
         scale={isNarrow ? 0.58 : 0.72}
       />
 
-      {balloons.map((b) => (
+      {balloons.slice(0, visibleCount).map((b) => (
         <FloatingBalloon3D
           key={b.id}
           data={b}
+          registryRef={registryRef}
+          spread={spread}
           halfWidth={halfWidth}
           balloonScale={balloonScale}
+          speedMul={speedMul}
           onPop={onPop}
         />
       ))}
@@ -295,9 +391,22 @@ export function BalloonPopGame3D() {
   const [crowns, setCrowns] = useState(0);
   const [celebrationMsg, setCelebrationMsg] = useState<string | null>(null);
   const [balloons, setBalloons] = useState<BalloonData[]>(() =>
-    Array.from({ length: 9 }, (_, i) => createBalloon(i + 1, true))
+    Array.from({ length: LANES_WIDE }, (_, i) => createBalloon(i + 1, true))
   );
   const [bursts, setBursts] = useState<BurstData[]>([]);
+  const celebrationTimerRef = useRef<number | null>(null);
+  const burstTimersRef = useRef<Set<number>>(new Set());
+
+  // Clear pending timers (and the hover cursor) when leaving the page
+  useEffect(() => {
+    const burstTimers = burstTimersRef.current;
+    return () => {
+      if (celebrationTimerRef.current !== null) window.clearTimeout(celebrationTimerRef.current);
+      burstTimers.forEach((id) => window.clearTimeout(id));
+      burstTimers.clear();
+      document.body.style.cursor = "auto";
+    };
+  }, []);
 
   const handlePop = (
     id: number,
@@ -316,9 +425,11 @@ export function BalloonPopGame3D() {
       ...prev.slice(-6),
       { id: burstId, position: pos, color, createdAt: performance.now() },
     ]);
-    window.setTimeout(() => {
+    const burstTimer = window.setTimeout(() => {
+      burstTimersRef.current.delete(burstTimer);
       setBursts((prev) => prev.filter((b) => b.id !== burstId));
     }, 520);
+    burstTimersRef.current.add(burstTimer);
 
     nextIdRef.current += 1;
     const freshId = nextIdRef.current;
@@ -346,7 +457,12 @@ export function BalloonPopGame3D() {
         colors: ["#ff6eb4", "#c084fc", "#38bdf8", "#fbbf24", "#4ade80"],
       });
       setCelebrationMsg(t.balloonGame.celebration(nextLevel));
-      window.setTimeout(() => setCelebrationMsg(null), 2600);
+      // A new crown restarts the toast timer, so an older timer can't hide the newer message
+      if (celebrationTimerRef.current !== null) window.clearTimeout(celebrationTimerRef.current);
+      celebrationTimerRef.current = window.setTimeout(() => {
+        celebrationTimerRef.current = null;
+        setCelebrationMsg(null);
+      }, 2600);
     }
   };
 
@@ -355,10 +471,20 @@ export function BalloonPopGame3D() {
     setScore(0);
     setCrowns(0);
     setCelebrationMsg(null);
-    setBalloons(Array.from({ length: 9 }, (_, i) => createBalloon(i + 1, true)));
+    if (celebrationTimerRef.current !== null) {
+      window.clearTimeout(celebrationTimerRef.current);
+      celebrationTimerRef.current = null;
+    }
+    setBursts([]);
+    // Fresh ids so every balloon remounts at its new height (reused ids kept the old position)
+    const firstId = nextIdRef.current + 1;
+    nextIdRef.current += LANES_WIDE;
+    setBalloons(Array.from({ length: LANES_WIDE }, (_, i) => createBalloon(firstId + i, true)));
   };
 
   const progressInLevel = (score % 10) * 10;
+  // Balloons float a little faster with every crown (capped), so the game grows with her
+  const speedMul = 1 + Math.min(crowns, 6) * 0.07;
 
   return (
     <div className="game-stage-root w-full">
@@ -405,8 +531,8 @@ export function BalloonPopGame3D() {
 
       {/* 3D Canvas sized to fit cleanly inside a single mobile screen */}
       <div className="game-stage-canvas relative h-[58dvh] min-h-[340px] max-h-[540px] w-full touch-none overflow-hidden rounded-[1.75rem] border-4 border-white/90 bg-gradient-to-b from-sky-300/80 via-pink-200/75 to-purple-200/85 shadow-2xl shadow-purple-300/40 sm:h-[520px] sm:rounded-[2rem]">
-        <Canvas camera={{ position: [0, 0, 7.2], fov: 50 }} dpr={[1, 2]}>
-          <BalloonWorld balloons={balloons} bursts={bursts} onPop={handlePop} />
+        <Canvas camera={{ position: [0, 0, 7.2], fov: 50 }} dpr={[1, 1.5]}>
+          <BalloonWorld balloons={balloons} bursts={bursts} speedMul={speedMul} onPop={handlePop} />
         </Canvas>
 
         {/* Celebration Toast */}

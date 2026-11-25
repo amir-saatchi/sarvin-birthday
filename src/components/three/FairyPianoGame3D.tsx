@@ -208,7 +208,21 @@ export function FairyPianoGame3D() {
   const [bursts, setBursts] = useState<FloatingNoteBurst[]>([]);
   const [isDemoPlaying, setIsDemoPlaying] = useState(false);
 
+  const [hintPulse, setHintPulse] = useState(false);
+
   const demoTimersRef = useRef<number[]>([]);
+  // Short-lived UI timers (key flash, note bursts, hint, win fanfare), cleared on unmount
+  const uiTimersRef = useRef<Set<number>>(new Set());
+  const hintTimerRef = useRef<number | null>(null);
+
+  const later = useCallback((fn: () => void, ms: number) => {
+    const id = window.setTimeout(() => {
+      uiTimersRef.current.delete(id);
+      fn();
+    }, ms);
+    uiTimersRef.current.add(id);
+    return id;
+  }, []);
 
   const stopDemo = useCallback(() => {
     demoTimersRef.current.forEach((id) => window.clearTimeout(id));
@@ -216,7 +230,14 @@ export function FairyPianoGame3D() {
     setIsDemoPlaying(false);
   }, []);
 
-  useEffect(() => () => stopDemo(), [stopDemo]);
+  useEffect(() => {
+    const uiTimers = uiTimersRef.current;
+    return () => {
+      stopDemo();
+      uiTimers.forEach((id) => window.clearTimeout(id));
+      uiTimers.clear();
+    };
+  }, [stopDemo]);
 
   const triggerKeyVisualAndSound = useCallback((keyIdx: number) => {
     const def = PIANO_KEYS[keyIdx];
@@ -225,7 +246,7 @@ export function FairyPianoGame3D() {
     playFairyNote(def.freq);
     setActiveKey(keyIdx);
     setBouncePulse((p) => p + 1);
-    window.setTimeout(() => {
+    later(() => {
       setActiveKey((curr) => (curr === keyIdx ? null : curr));
     }, 180);
 
@@ -241,10 +262,10 @@ export function FairyPianoGame3D() {
         createdAt: performance.now(),
       },
     ]);
-    window.setTimeout(() => {
+    later(() => {
       setBursts((prev) => prev.filter((b) => b.id !== burstId));
     }, 1150);
-  }, []);
+  }, [later]);
 
   const handlePressKey = useCallback(
     (keyIdx: number) => {
@@ -258,7 +279,7 @@ export function FairyPianoGame3D() {
           if (nextStep >= HAPPY_BIRTHDAY_SEQUENCE.length) {
             setStep(nextStep);
             setWon(true);
-            window.setTimeout(() => {
+            later(() => {
               playVictoryFanfare();
               confetti({
                 particleCount: 160,
@@ -270,10 +291,18 @@ export function FairyPianoGame3D() {
           } else {
             setStep(nextStep);
           }
+        } else {
+          // Wrong key: no penalty, just make the golden-star key jump out so she finds it
+          setHintPulse(true);
+          if (hintTimerRef.current !== null) window.clearTimeout(hintTimerRef.current);
+          hintTimerRef.current = later(() => {
+            hintTimerRef.current = null;
+            setHintPulse(false);
+          }, 450);
         }
       }
     },
-    [isDemoPlaying, stopDemo, triggerKeyVisualAndSound, mode, won, step]
+    [isDemoPlaying, stopDemo, triggerKeyVisualAndSound, later, mode, won, step]
   );
 
   // Desktop keyboard shortcuts 1-8
@@ -321,7 +350,7 @@ export function FairyPianoGame3D() {
     <div className="game-stage-root w-full">
       {/* 3D Dancing Concert Stage */}
       <div className="game-stage-canvas relative mb-3 h-[34dvh] min-h-[210px] max-h-[340px] w-full overflow-hidden rounded-[1.75rem] border-4 border-white/90 bg-gradient-to-b from-sky-200/80 via-pink-100/80 to-purple-200/85 shadow-2xl shadow-purple-300/40 sm:mb-4 sm:h-[330px] sm:rounded-[2rem]">
-        <Canvas camera={{ position: [0, 1.3, 5.5], fov: 44 }} dpr={[1, 2]}>
+        <Canvas camera={{ position: [0, 1.3, 5.5], fov: 44 }} dpr={[1, 1.5]}>
           <ConcertStage3D bouncePulse={bouncePulse} celebrating={won} bursts={bursts} />
         </Canvas>
 
@@ -359,6 +388,8 @@ export function FairyPianoGame3D() {
             type="button"
             onClick={() => {
               stopDemo();
+              // Tapping the already-selected song button must not wipe her progress
+              if (mode === "learn") return;
               setMode("learn");
               setStep(0);
               setWon(false);
@@ -426,13 +457,15 @@ export function FairyPianoGame3D() {
               key={k.id}
               type="button"
               onPointerDown={() => handlePressKey(k.id)}
-              className={`relative flex h-36 cursor-pointer flex-col items-center justify-between rounded-2xl border-2 bg-gradient-to-b py-3 text-white shadow-md transition-transform select-none sm:h-44 sm:rounded-3xl sm:py-4 ${
+              className={`relative flex h-36 cursor-pointer touch-manipulation flex-col items-center justify-between rounded-2xl border-2 bg-gradient-to-b py-3 text-white shadow-md transition-transform select-none sm:h-44 sm:rounded-3xl sm:py-4 ${
                 k.bgClass
               } ${k.borderClass} ${
                 isPressed
                   ? "translate-y-1.5 scale-95 brightness-110 shadow-inner"
                   : "hover:-translate-y-0.5 active:translate-y-1.5"
-              } ${isTarget ? "ring-4 ring-amber-300 brightness-105" : ""}`}
+              } ${isTarget ? "ring-4 ring-amber-300 brightness-105" : ""} ${
+                isTarget && hintPulse ? "z-10 -translate-y-2 scale-110 ring-8" : ""
+              }`}
             >
               {/* Glossy top highlight */}
               <div className="h-2.5 w-4/5 rounded-full bg-white/40" />

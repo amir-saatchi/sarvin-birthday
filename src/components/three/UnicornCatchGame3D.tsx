@@ -12,12 +12,17 @@ import {
   CuteUnicorn3D,
   FairyCastle3D,
   ExtrudedStar3D,
-  ExtrudedHeart3D,
 } from "./MagicalDecor3D";
 import { playPopSound, playSparkleSound, playVictoryFanfare } from "@/lib/soundEffects";
 import { t } from "@/config/translate";
 
 const TARGET_TREATS = 15;
+// Only two treats in the air at once, so she has to chase each one
+const TREAT_SLOTS = 2;
+// Widest spawn spread (normalized -1..1)
+const SPAWN_SPREAD = 0.86;
+// How far outside the catch radius (world units) a new treat must land, so standing still never wins
+const SPAWN_MARGIN = 0.35;
 
 type TreatKind = "cupcake" | "star" | "strawberry" | "gem" | "macaron";
 
@@ -31,10 +36,27 @@ interface FallingTreat {
 
 const TREAT_KINDS: TreatKind[] = ["cupcake", "star", "strawberry", "gem", "macaron"];
 
-function spawnTreat(id: number, startY = 4.2): FallingTreat {
+// Random x that keeps at least minGap (normalized) clear of the unicorn at avoidNorm. Tries a few
+// random spots and falls back to the farthest one, so it always returns something on screen.
+function pickTreatX(avoidNorm: number, minGap: number) {
+  let best = 0;
+  let bestGap = -1;
+  for (let i = 0; i < 8; i++) {
+    const x = (Math.random() * 2 - 1) * SPAWN_SPREAD;
+    const gap = Math.abs(x - avoidNorm);
+    if (gap >= minGap) return x;
+    if (gap > bestGap) {
+      bestGap = gap;
+      best = x;
+    }
+  }
+  return best;
+}
+
+function spawnTreat(id: number, startY: number, avoidNorm: number, minGap: number): FallingTreat {
   return {
     id,
-    xNorm: (Math.random() - 0.5) * 1.72,
+    xNorm: pickTreatX(avoidNorm, minGap),
     y: startY + Math.random() * 1.8,
     speed: 2.55 + Math.random() * 1.0,
     kind: TREAT_KINDS[Math.floor(Math.random() * TREAT_KINDS.length)],
@@ -220,11 +242,10 @@ function TreatMesh3D({ kind }: { kind: TreatKind }) {
     );
   }
 
-  // Glowing Golden Fairy Star + tiny floating inner sparkle
+  // Glowing Golden Fairy Star
   return (
     <group scale={1.1}>
       <ExtrudedStar3D scale={0.98} color="#fde047" emissive="#f59e0b" emissiveIntensity={0.55} />
-      <ExtrudedHeart3D position={[0, 0, 0.11]} scale={0.28} color="#ff6eb4" />
     </group>
   );
 }
@@ -232,10 +253,12 @@ function TreatMesh3D({ kind }: { kind: TreatKind }) {
 function CatcherWorld({
   targetNormXRef,
   won,
+  progress,
   onCatch,
 }: {
   targetNormXRef: React.MutableRefObject<number>; // normalized -1 to 1
   won: boolean;
+  progress: number; // 0..1 share of the target caught, used to ramp the fall speed
   onCatch: (kind: TreatKind) => void;
 }) {
   const { viewport } = useThree();
@@ -243,33 +266,30 @@ function CatcherWorld({
   const playLimitX = Math.max(1.25, Math.min(3.1, viewport.width / 2 - 0.65));
   const unicornScale = isNarrow ? 0.68 : 0.85;
   const treatScale = isNarrow ? 0.86 : 1;
+  const catchRadiusX = isNarrow ? 0.85 : 1.05;
+  // Normalized gap that puts a new treat outside the catch radius (plus a margin)
+  const spawnGap = (catchRadiusX + SPAWN_MARGIN) / playLimitX;
 
   const unicornGroupRef = useRef<THREE.Group>(null);
   const unicornXRef = useRef(0);
   const treatRefs = useRef<(THREE.Group | null)[]>([]);
-  // Positions/velocities live in a ref (updated per frame); the kind of each slot lives in React state
-  // so the rendered mesh always matches the kind that is used when the treat is caught.
+  // Positions, speeds and kinds live in a ref and are updated per frame. Every slot keeps one
+  // mesh of each kind mounted and only toggles which one is visible, so a respawn never causes a
+  // React re-render or rebuilds geometry mid-game.
   const [initialTreats] = useState<FallingTreat[]>(() =>
-    Array.from({ length: 3 }, (_, i) => spawnTreat(i + 1, 3.4 + i * 2.5))
+    Array.from({ length: TREAT_SLOTS }, (_, i) => spawnTreat(i + 1, 3.4 + i * 3.2, 0, spawnGap))
   );
   const treatsDataRef = useRef<FallingTreat[]>(initialTreats);
-  const [kinds, setKinds] = useState<TreatKind[]>(() => initialTreats.map((tr) => tr.kind));
   const wasWonRef = useRef(false);
+  const catchAtRef = useRef(-1);
 
-  const respawnTreat = (treat: FallingTreat, idx: number) => {
-    const respawned = spawnTreat(treat.id, 3.8);
+  const respawnTreat = (treat: FallingTreat) => {
+    // Land away from where the unicorn is now, so she has to move for the next one
+    const respawned = spawnTreat(treat.id, 3.8, unicornXRef.current / playLimitX, spawnGap);
     treat.xNorm = respawned.xNorm;
     treat.y = respawned.y;
     treat.speed = respawned.speed;
-    if (treat.kind !== respawned.kind) {
-      treat.kind = respawned.kind;
-      setKinds((prev) => {
-        if (prev[idx] === respawned.kind) return prev;
-        const next = [...prev];
-        next[idx] = respawned.kind;
-        return next;
-      });
-    }
+    treat.kind = respawned.kind;
   };
 
   useFrame((state, delta) => {
@@ -282,6 +302,9 @@ function CatcherWorld({
       unicornGroupRef.current.position.x = unicornXRef.current;
       const vel = targetX - unicornXRef.current;
       unicornGroupRef.current.rotation.z = THREE.MathUtils.clamp(-vel * 0.14, -0.22, 0.22);
+      // Happy little hop each time a treat is caught
+      const hopT = catchAtRef.current < 0 ? 1 : (state.clock.elapsedTime - catchAtRef.current) / 0.32;
+      unicornGroupRef.current.position.y = -1.9 + (hopT < 1 ? Math.sin(hopT * Math.PI) * 0.28 : 0);
     }
 
     if (won) {
@@ -289,31 +312,35 @@ function CatcherWorld({
       return;
     }
     if (wasWonRef.current) {
-      // Restart after a win: fresh treats, and their kinds go to state so the meshes match
+      // Restart after a win: fresh treats (the slot meshes remount and pick up the new kinds)
       wasWonRef.current = false;
-      const fresh = Array.from({ length: 3 }, (_, i) => spawnTreat(i + 1, 3.4 + i * 2.5));
-      treatsDataRef.current = fresh;
-      setKinds(fresh.map((tr) => tr.kind));
+      treatsDataRef.current = Array.from({ length: TREAT_SLOTS }, (_, i) =>
+        spawnTreat(i + 1, 3.4 + i * 3.2, unicornXRef.current / playLimitX, spawnGap)
+      );
     }
 
-    const catchRadiusX = isNarrow ? 0.85 : 1.05;
+    // Start gentle and speed up a little as she gets closer to the crown
+    const speedMul = 0.75 + Math.min(1, progress) * 0.3;
     treatsDataRef.current.forEach((treat, idx) => {
-      treat.y -= treat.speed * dt;
+      treat.y -= treat.speed * speedMul * dt;
       const worldX = treat.xNorm * playLimitX;
-      const mesh = treatRefs.current[idx];
+      const slot = treatRefs.current[idx];
 
       const dx = Math.abs(worldX - unicornXRef.current);
       const dy = Math.abs(treat.y - -1.45);
       if (dx < catchRadiusX && dy < 0.95) {
         onCatch(treat.kind);
-        respawnTreat(treat, idx);
+        catchAtRef.current = state.clock.elapsedTime;
+        respawnTreat(treat);
       } else if (treat.y < -3.3) {
-        respawnTreat(treat, idx);
+        respawnTreat(treat);
       }
 
-      if (mesh) {
-        mesh.position.set(worldX, treat.y, 0);
-        mesh.rotation.y = state.clock.elapsedTime * 2 + idx;
+      if (slot) {
+        slot.position.set(worldX, treat.y, 0);
+        slot.rotation.y = state.clock.elapsedTime * 2 + idx;
+        const kinds = slot.children;
+        for (let k = 0; k < kinds.length; k++) kinds[k].visible = TREAT_KINDS[k] === treat.kind;
       }
     });
   });
@@ -351,7 +378,7 @@ function CatcherWorld({
 
       {/* Falling 3D treats */}
       {!won &&
-        kinds.map((kind, idx) => (
+        Array.from({ length: TREAT_SLOTS }, (_, idx) => (
           <group
             key={idx}
             ref={(el) => {
@@ -361,12 +388,73 @@ function CatcherWorld({
             position={[0, 10, 0]}
             scale={treatScale}
           >
-            <TreatMesh3D kind={kind} />
+            {/* One child per kind, in TREAT_KINDS order; useFrame shows only the slot's current kind */}
+            {TREAT_KINDS.map((kind) => (
+              <group key={kind}>
+                <TreatMesh3D kind={kind} />
+              </group>
+            ))}
           </group>
         ))}
 
       <Sparkles count={40} scale={[playLimitX * 2.4, 6, 4]} size={4} speed={0.4} color="#fef08a" />
     </>
+  );
+}
+
+// Big arrow button: a tap nudges the unicorn, and holding keeps it gliding until the finger lifts
+function HoldArrowButton({
+  dir,
+  targetNormXRef,
+  ariaLabel,
+  children,
+}: {
+  dir: -1 | 1;
+  targetNormXRef: React.MutableRefObject<number>;
+  ariaLabel: string;
+  children: React.ReactNode;
+}) {
+  const holdTimerRef = useRef<number | null>(null);
+
+  const stopHold = () => {
+    if (holdTimerRef.current !== null) {
+      window.clearInterval(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  };
+
+  // The button unmounts on a win or when leaving the page, when no pointer-up arrives
+  useEffect(
+    () => () => {
+      if (holdTimerRef.current !== null) window.clearInterval(holdTimerRef.current);
+    },
+    []
+  );
+
+  const nudge = (amount: number) => {
+    targetNormXRef.current = Math.max(-1, Math.min(1, targetNormXRef.current + dir * amount));
+  };
+
+  return (
+    <button
+      type="button"
+      onPointerDown={(e) => {
+        // Keep the arena's drag-to-follow handler from jumping the unicorn to the button
+        e.stopPropagation();
+        stopHold();
+        nudge(0.22);
+        holdTimerRef.current = window.setInterval(() => nudge(0.07), 70);
+      }}
+      onPointerMove={(e) => e.stopPropagation()}
+      onPointerUp={() => stopHold()}
+      onPointerLeave={() => stopHold()}
+      onPointerCancel={() => stopHold()}
+      onContextMenu={(e) => e.preventDefault()}
+      aria-label={ariaLabel}
+      className="pointer-events-auto flex h-14 w-14 cursor-pointer touch-none items-center justify-center rounded-full border-2 border-white bg-white/80 text-purple-800 shadow-lg backdrop-blur transition select-none hover:scale-105 active:scale-95"
+    >
+      {children}
+    </button>
   );
 }
 
@@ -429,13 +517,6 @@ export function UnicornCatchGame3D() {
     targetNormXRef.current = 0;
   };
 
-  const nudgeLeft = () => {
-    targetNormXRef.current = Math.max(-1, targetNormXRef.current - 0.32);
-  };
-
-  const nudgeRight = () => {
-    targetNormXRef.current = Math.min(1, targetNormXRef.current + 0.32);
-  };
 
   const pct = Math.min(100, Math.round((caught / TARGET_TREATS) * 100));
 
@@ -477,8 +558,13 @@ export function UnicornCatchGame3D() {
         onPointerDown={handlePointerMove}
         className="game-stage-canvas relative h-[58dvh] min-h-[340px] max-h-[540px] w-full touch-none overflow-hidden rounded-[1.75rem] border-4 border-white/90 bg-gradient-to-b from-indigo-200/80 via-pink-100/80 to-purple-200/85 shadow-2xl shadow-purple-300/40 sm:h-[520px] sm:rounded-[2rem]"
       >
-        <Canvas camera={{ position: [0, 0.2, 7.2], fov: 48 }} dpr={[1, 2]}>
-          <CatcherWorld targetNormXRef={targetNormXRef} won={won} onCatch={handleCatch} />
+        <Canvas camera={{ position: [0, 0.2, 7.2], fov: 48 }} dpr={[1, 1.5]}>
+          <CatcherWorld
+            targetNormXRef={targetNormXRef}
+            won={won}
+            progress={caught / TARGET_TREATS}
+            onCatch={handleCatch}
+          />
         </Canvas>
 
         {/* Big touch buttons for little fingers (dir="ltr" keeps Left on left & Right on right) */}
@@ -487,45 +573,39 @@ export function UnicornCatchGame3D() {
             dir="ltr"
             className="pointer-events-none absolute inset-x-2.5 top-1/2 flex -translate-y-1/2 items-center justify-between sm:inset-x-3"
           >
-            <button
-              type="button"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={nudgeLeft}
-              aria-label={t.unicornGame.moveLeftAria}
-              className="pointer-events-auto flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-white/80 text-purple-800 shadow-lg backdrop-blur transition hover:scale-105 active:scale-95 sm:h-14 sm:w-14"
+            <HoldArrowButton
+              dir={-1}
+              targetNormXRef={targetNormXRef}
+              ariaLabel={t.unicornGame.moveLeftAria}
             >
-              <ChevronLeft className="h-7 w-7 sm:h-8 sm:w-8" />
-            </button>
-            <button
-              type="button"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={nudgeRight}
-              aria-label={t.unicornGame.moveRightAria}
-              className="pointer-events-auto flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-white/80 text-purple-800 shadow-lg backdrop-blur transition hover:scale-105 active:scale-95 sm:h-14 sm:w-14"
+              <ChevronLeft className="h-8 w-8" />
+            </HoldArrowButton>
+            <HoldArrowButton
+              dir={1}
+              targetNormXRef={targetNormXRef}
+              ariaLabel={t.unicornGame.moveRightAria}
             >
-              <ChevronRight className="h-7 w-7 sm:h-8 sm:w-8" />
-            </button>
+              <ChevronRight className="h-8 w-8" />
+            </HoldArrowButton>
           </div>
         )}
 
         {/* Win Celebration Overlay */}
         {won && (
-          <div className="absolute inset-x-3 top-6 z-20 flex flex-col items-center text-center sm:inset-x-4 sm:top-8">
-            <div className="kawaii-card max-w-sm rounded-[1.75rem] p-5 sm:rounded-[2rem] sm:p-6">
-              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-700">
-                <Crown className="h-4 w-4 fill-amber-400 text-amber-500" />
-                {t.unicornGame.winBadge}
-              </div>
-              <h2 className="font-display mb-2 text-2xl font-bold text-purple-900 sm:text-3xl">
+          // Small card pinned to the top, so the dancing unicorn below stays in view
+          <div className="absolute inset-x-3 top-3 z-20 flex flex-col items-center text-center sm:inset-x-4 sm:top-4">
+            <div className="kawaii-card max-w-xs rounded-[1.5rem] px-4 py-3 sm:px-5">
+              <h2 className="font-display mb-1 inline-flex items-center gap-1.5 text-xl font-bold text-purple-900 sm:text-2xl">
+                <Crown className="h-5 w-5 shrink-0 fill-amber-400 text-amber-500" />
                 {t.unicornGame.winTitle}
               </h2>
-              <p className="mb-4 text-sm font-bold text-purple-700">
+              <p className="mb-2.5 text-sm font-bold text-purple-700">
                 {t.unicornGame.winMessage(TARGET_TREATS)}
               </p>
               <button
                 type="button"
                 onClick={handleRestart}
-                className="font-display inline-flex cursor-pointer items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-6 py-2.5 text-base font-bold text-white shadow-lg transition hover:scale-105 active:scale-95"
+                className="font-display inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:scale-105 active:scale-95"
               >
                 <RotateCcw className="h-4 w-4" />
                 {t.unicornGame.playAgain}

@@ -105,7 +105,7 @@ export const TRANSLATIONS = {
       winBadge: "قهرمان تک‌شاخ پرنسس!",
       winTitle: "هورا، سروین جان!",
       winMessage: (target: number) =>
-        `همه ${formatNumber(target, "fa")} خوراکی جادویی تولد رو گرفتی! ببین تک‌شاخت چطور می‌رقصه!`,
+        `همه ${formatNumber(target, "fa")} خوراکی رو گرفتی!`,
       playAgain: "دوباره بازی کن!",
       tip: "کاپ‌کیک، توت‌فرنگی، الماس بنفش و ستاره‌های طلایی رو بگیر تا تاج پرنسس رو ببری!",
     },
@@ -294,7 +294,7 @@ export const TRANSLATIONS = {
       winBadge: "PRINCESS UNICORN WINNER!",
       winTitle: "Hooray, Sarvin!",
       winMessage: (target: number) =>
-        `You caught all ${target} magical birthday treats! Look at your dancing unicorn!`,
+        `You caught all ${target} treats!`,
       playAgain: "Play Again!",
       tip: "Catch cupcakes, strawberries, purple gems & golden stars to win the Princess Tiara!",
     },

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Sparkles, ContactShadows, Float, Instances, Instance } from "@react-three/drei";
 import * as THREE from "three";
@@ -384,6 +384,8 @@ function CustomCake3D({
         scale={9}
         blur={2.4}
         far={3.5}
+        // A soft blurred shadow looks the same at 256px; halves the per-frame shadow pass on phones
+        resolution={256}
         color="#7e22ce"
       />
       <Sparkles count={45} scale={[6, 4.5, 4]} size={4} speed={0.45} color="#fef08a" />
@@ -410,6 +412,14 @@ export function CakeDecoratorGame3D() {
   });
   const [topper, setTopper] = useState<TopperId>("unicorn");
   const [partyMode, setPartyMode] = useState(false);
+  const partyTimerRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (partyTimerRef.current !== null) window.clearTimeout(partyTimerRef.current);
+    },
+    []
+  );
 
   const currentTheme = CAKE_THEMES.find((c) => c.id === themeId) ?? CAKE_THEMES[0];
 
@@ -445,7 +455,12 @@ export function CakeDecoratorGame3D() {
       origin: { y: 0.55 },
       colors: ["#ff6eb4", "#c084fc", "#38bdf8", "#fbbf24", "#4ade80"],
     });
-    window.setTimeout(() => setPartyMode(false), 3200);
+    // Tapping party again restarts the dance, so an older timer can't cut the new one short
+    if (partyTimerRef.current !== null) window.clearTimeout(partyTimerRef.current);
+    partyTimerRef.current = window.setTimeout(() => {
+      partyTimerRef.current = null;
+      setPartyMode(false);
+    }, 3200);
   };
 
   const tabs: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -474,7 +489,7 @@ export function CakeDecoratorGame3D() {
           <button
             type="button"
             onClick={handleSurprise}
-            className="font-display pointer-events-auto inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 border-white bg-white/90 px-3.5 py-1.5 text-xs font-bold text-purple-800 shadow-md transition hover:scale-105 active:scale-95 sm:px-4 sm:py-2 sm:text-sm"
+            className="font-display pointer-events-auto inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border-2 border-white bg-white/90 px-3.5 py-1.5 text-xs font-bold text-purple-800 shadow-md transition hover:scale-105 active:scale-95 sm:px-4 sm:py-2 sm:text-sm"
           >
             <Wand2 className="h-4 w-4 text-purple-500" />
             {t.cakeStudio.surpriseBtn}
@@ -483,7 +498,7 @@ export function CakeDecoratorGame3D() {
           <button
             type="button"
             onClick={handleParty}
-            className="font-display pointer-events-auto inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-md ring-2 ring-white transition hover:scale-105 active:scale-95 sm:px-4 sm:py-2 sm:text-sm"
+            className="font-display pointer-events-auto inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-md ring-2 ring-white transition hover:scale-105 active:scale-95 sm:px-4 sm:py-2 sm:text-sm"
           >
             <PartyPopper className="h-4 w-4" />
             {t.cakeStudio.partyBtn}
@@ -589,7 +604,7 @@ export function CakeDecoratorGame3D() {
                   key={key}
                   type="button"
                   onClick={() => toggleTopping(key)}
-                  className={`font-display inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3.5 py-2 text-xs font-bold transition sm:px-4 sm:text-sm ${
+                  className={`font-display inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border-2 px-3.5 py-2 text-xs font-bold transition active:scale-95 sm:px-4 sm:text-sm ${
                     on
                       ? "border-pink-400 bg-pink-100 text-pink-700 shadow-sm"
                       : "border-purple-100 bg-white/80 text-purple-700/75 hover:bg-purple-50"
@@ -624,7 +639,7 @@ export function CakeDecoratorGame3D() {
                     playSparkleSound();
                     setTopper(id);
                   }}
-                  className={`font-display inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3.5 py-2 text-xs font-bold transition sm:px-4 sm:text-sm ${
+                  className={`font-display inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border-2 px-3.5 py-2 text-xs font-bold transition active:scale-95 sm:px-4 sm:text-sm ${
                     selected
                       ? "border-purple-500 bg-purple-100 text-purple-900 shadow-sm"
                       : "border-purple-100 bg-white/80 text-purple-700/80 hover:bg-purple-50"
