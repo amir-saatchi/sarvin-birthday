@@ -5,7 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Sparkles } from "@react-three/drei";
 import * as THREE from "three";
 import confetti from "canvas-confetti";
-import { Music, Play, RotateCcw, Sparkles as SparklesIcon, Star, Trophy } from "lucide-react";
+import { Castle, Music, Play, RotateCcw, Sparkles as SparklesIcon, Star, Trophy } from "lucide-react";
 import {
   CuteUnicorn3D,
   KawaiiBunnyFriend3D,
@@ -50,6 +50,26 @@ const HAPPY_BIRTHDAY_SEQUENCE: [number, number][] = [
   // Happy birthday to you
   [6, 340], [6, 240], [5, 520], [3, 520], [4, 520], [3, 900],
 ];
+
+// Castle World's theme (src/lib/castleMusic.ts), first 8 bars. Notes above the top key (A5, B5,
+// C6) drop an octave so it fits the 8 keys; the closing G4 pickup is left out so it ends on C.
+const E8 = 250; // one eighth note in ms
+const CASTLE_SONG_SEQUENCE: [number, number][] = [
+  [0, 2 * E8], [3, E8], [5, E8], [7, 2 * E8], [5, 2 * E8],
+  [1, 2 * E8], [7, E8], [5, E8], [3, 2 * E8], [4, 2 * E8],
+  [6, 2 * E8], [1, 2 * E8], [3, 2 * E8], [1, E8], [6, E8],
+  [7, 4 * E8], [2, 2 * E8], [4, 2 * E8],
+  [5, 2 * E8], [7, E8], [3, E8], [2, 2 * E8], [7, 2 * E8],
+  [1, 2 * E8], [5, 2 * E8], [3, E8], [4, E8], [5, 2 * E8],
+  [6, 2 * E8], [4, 2 * E8], [7, 2 * E8], [2, 2 * E8],
+  [3, 900],
+];
+
+type SongId = "birthday" | "castle";
+const SONGS: Record<SongId, [number, number][]> = {
+  birthday: HAPPY_BIRTHDAY_SEQUENCE,
+  castle: CASTLE_SONG_SEQUENCE,
+};
 
 function playFairyNote(freq: number) {
   const pianoCtx = getAudioContext();
@@ -200,7 +220,9 @@ function ConcertStage3D({
 }
 
 export function FairyPianoGame3D() {
-  const [mode, setMode] = useState<"learn" | "free">("learn");
+  // Which song she is learning, or free play
+  const [mode, setMode] = useState<SongId | "free">("birthday");
+  const song = mode === "free" ? null : SONGS[mode];
   const [step, setStep] = useState(0);
   const [won, setWon] = useState(false);
   const [activeKey, setActiveKey] = useState<number | null>(null);
@@ -272,11 +294,11 @@ export function FairyPianoGame3D() {
       if (isDemoPlaying) stopDemo();
       triggerKeyVisualAndSound(keyIdx);
 
-      if (mode === "learn" && !won) {
-        const expectedKey = HAPPY_BIRTHDAY_SEQUENCE[step]?.[0];
+      if (song && !won) {
+        const expectedKey = song[step]?.[0];
         if (keyIdx === expectedKey) {
           const nextStep = step + 1;
-          if (nextStep >= HAPPY_BIRTHDAY_SEQUENCE.length) {
+          if (nextStep >= song.length) {
             setStep(nextStep);
             setWon(true);
             later(() => {
@@ -302,7 +324,7 @@ export function FairyPianoGame3D() {
         }
       }
     },
-    [isDemoPlaying, stopDemo, triggerKeyVisualAndSound, later, mode, won, step]
+    [isDemoPlaying, stopDemo, triggerKeyVisualAndSound, later, song, won, step]
   );
 
   // Desktop keyboard shortcuts 1-8
@@ -322,11 +344,13 @@ export function FairyPianoGame3D() {
       return;
     }
     setIsDemoPlaying(true);
+    // Plays the song being learned (Happy Birthday in free play)
+    const demoSong = song ?? HAPPY_BIRTHDAY_SEQUENCE;
     let elapsed = 0;
-    HAPPY_BIRTHDAY_SEQUENCE.forEach(([keyIdx, dur], i) => {
+    demoSong.forEach(([keyIdx, dur], i) => {
       const tid = window.setTimeout(() => {
         triggerKeyVisualAndSound(keyIdx);
-        if (i === HAPPY_BIRTHDAY_SEQUENCE.length - 1) {
+        if (i === demoSong.length - 1) {
           setIsDemoPlaying(false);
         }
       }, elapsed);
@@ -342,9 +366,21 @@ export function FairyPianoGame3D() {
   };
 
   const targetKeyIdx =
-    mode === "learn" && !won && !isDemoPlaying
-      ? HAPPY_BIRTHDAY_SEQUENCE[step]?.[0] ?? null
-      : null;
+    song && !won && !isDemoPlaying ? song[step]?.[0] ?? null : null;
+
+  // Picks a song to learn. Tapping the song that is already selected must not wipe her progress.
+  const selectSong = (id: SongId) => {
+    stopDemo();
+    if (mode === id) return;
+    setMode(id);
+    setStep(0);
+    setWon(false);
+  };
+
+  const songButtons: { id: SongId; label: string; Icon: typeof Star }[] = [
+    { id: "birthday", label: t.fairyPiano.modeLearn, Icon: Star },
+    { id: "castle", label: t.fairyPiano.modeCastle, Icon: Castle },
+  ];
 
   return (
     <div className="game-stage-root w-full">
@@ -377,26 +413,22 @@ export function FairyPianoGame3D() {
 
       {/* Mode & Demo Controls */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-white/90 bg-white/85 px-3 py-2 shadow-md backdrop-blur sm:mb-4 sm:rounded-3xl sm:px-4 sm:py-2.5">
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              stopDemo();
-              // Tapping the already-selected song button must not wipe her progress
-              if (mode === "learn") return;
-              setMode("learn");
-              setStep(0);
-              setWon(false);
-            }}
-            className={`font-display inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition sm:px-4 sm:text-sm ${
-              mode === "learn"
-                ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow"
-                : "bg-pink-50 text-purple-800 hover:bg-pink-100"
-            }`}
-          >
-            <Star className="h-3.5 w-3.5" />
-            {t.fairyPiano.modeLearn}
-          </button>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {songButtons.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => selectSong(id)}
+              className={`font-display inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition sm:px-4 sm:text-sm ${
+                mode === id
+                  ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow"
+                  : "bg-pink-50 text-purple-800 hover:bg-pink-100"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          ))}
 
           <button
             type="button"
@@ -405,7 +437,7 @@ export function FairyPianoGame3D() {
               setMode("free");
               setWon(false);
             }}
-            className={`font-display inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition sm:px-4 sm:text-sm ${
+            className={`font-display inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition sm:px-4 sm:text-sm ${
               mode === "free"
                 ? "bg-gradient-to-r from-sky-400 to-indigo-500 text-white shadow"
                 : "bg-purple-50 text-purple-800 hover:bg-purple-100"
@@ -417,9 +449,9 @@ export function FairyPianoGame3D() {
         </div>
 
         <div className="flex items-center gap-2">
-          {mode === "learn" && (
+          {song && (
             <span className="font-display rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 sm:text-sm">
-              {t.fairyPiano.progressLabel(step, HAPPY_BIRTHDAY_SEQUENCE.length)}
+              {t.fairyPiano.progressLabel(step, song.length)}
             </span>
           )}
 
